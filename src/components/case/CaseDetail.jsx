@@ -1264,6 +1264,7 @@ const CaseDetail = () => {
                         variant="outlined"
                         size="small"
                         fullWidth
+                        value={taskFilter}
                         InputProps={{
                           startAdornment: (
                             <InputAdornment position="start">
@@ -1295,7 +1296,22 @@ const CaseDetail = () => {
                         startIcon={<FilterListIcon />}
                         onClick={() => setAdvancedFilterOpen(!advancedFilterOpen)}
                       >
-                        More Filters
+                        More
+                      </Button>
+                      
+                      <Button 
+                        variant="outlined" 
+                        color="secondary"
+                        onClick={() => {
+                          setTaskFilter('');
+                          setStatusFilter('');
+                          setStoFilter('');
+                          setDueDateFromFilter('');
+                          setDueDateToFilter('');
+                          setAdvancedFilterOpen(false);
+                        }}
+                      >
+                        Reset
                       </Button>
                     </Paper>
                     
@@ -1310,6 +1326,7 @@ const CaseDetail = () => {
                               variant="outlined"
                               size="small"
                               fullWidth
+                              value={stoFilter}
                               onChange={(e) => setStoFilter(e.target.value)}
                             />
                           </Grid>
@@ -1320,6 +1337,7 @@ const CaseDetail = () => {
                               variant="outlined"
                               size="small"
                               fullWidth
+                              value={dueDateFromFilter}
                               InputLabelProps={{ shrink: true }}
                               onChange={(e) => setDueDateFromFilter(e.target.value)}
                             />
@@ -1331,6 +1349,7 @@ const CaseDetail = () => {
                               variant="outlined"
                               size="small"
                               fullWidth
+                              value={dueDateToFilter}
                               InputLabelProps={{ shrink: true }}
                               onChange={(e) => setDueDateToFilter(e.target.value)}
                             />
