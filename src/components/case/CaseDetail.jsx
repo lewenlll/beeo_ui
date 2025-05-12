@@ -33,7 +33,8 @@ import {
   MenuItem,
   Select,
   InputLabel,
-  FormControl
+  FormControl,
+  Menu
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import EditIcon from '@mui/icons-material/Edit';
@@ -47,6 +48,12 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import InputAdornment from '@mui/material/InputAdornment';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import AddIcon from '@mui/icons-material/Add';
+import NoteAddIcon from '@mui/icons-material/NoteAdd';
+import AssignmentIcon from '@mui/icons-material/Assignment';
+import CancelIcon from '@mui/icons-material/Cancel';
+import BlockIcon from '@mui/icons-material/Block';
 import BreadcrumbNav from '../common/BreadcrumbNav';
 import AttachmentUpload from '../common/AttachmentUpload';
 
@@ -310,6 +317,7 @@ const CaseDetail = () => {
   const [dueDateFromFilter, setDueDateFromFilter] = useState('');
   const [dueDateToFilter, setDueDateToFilter] = useState('');
   const [advancedFilterOpen, setAdvancedFilterOpen] = useState(false);
+  const [actionMenuAnchorEl, setActionMenuAnchorEl] = useState(null);
 
   const applicationData = caseData.applicationForm; // Use the applicationForm from caseData
   
@@ -1253,7 +1261,49 @@ const CaseDetail = () => {
                   <Box>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                       <Typography variant="h6">Tasks</Typography>
-                      <Button variant="contained" onClick={() => handleTaskClick(null)}>Request Supplementary Information</Button>
+                      <Box>
+                        <Button 
+                          variant="contained" 
+                          size="small"
+                          startIcon={<MoreVertIcon />}
+                          onClick={(event) => setActionMenuAnchorEl(event.currentTarget)}
+                        >
+                          Actions
+                        </Button>
+                        <Menu
+                          anchorEl={actionMenuAnchorEl}
+                          open={Boolean(actionMenuAnchorEl)}
+                          onClose={() => setActionMenuAnchorEl(null)}
+                        >
+                          <MenuItem onClick={() => {
+                            handleTaskClick(null);
+                            setActionMenuAnchorEl(null);
+                          }}>
+                            <ListItemIcon>
+                              <NoteAddIcon fontSize="small" />
+                            </ListItemIcon>
+                            <ListItemText>Request Supplement</ListItemText>
+                          </MenuItem>
+                          <MenuItem onClick={() => {
+                            // Handle other action
+                            setActionMenuAnchorEl(null);
+                          }}>
+                            <ListItemIcon>
+                              <CancelIcon fontSize="small" color="error" />
+                            </ListItemIcon>
+                            <ListItemText>Withdraw</ListItemText>
+                          </MenuItem>
+                          <MenuItem onClick={() => {
+                            // Handle other action
+                            setActionMenuAnchorEl(null);
+                          }}>
+                            <ListItemIcon>
+                              <BlockIcon fontSize="small" color="error" />
+                            </ListItemIcon>
+                            <ListItemText>Reject</ListItemText>
+                          </MenuItem>
+                        </Menu>
+                      </Box>
                     </Box>
                     
                     {/* New Filter Section */}
