@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+
 import {
   Box,
   Paper,
@@ -44,6 +45,8 @@ import SearchIcon from '@mui/icons-material/Search';
 import ApartmentIcon from '@mui/icons-material/Apartment';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import FilterListIcon from '@mui/icons-material/FilterList';
+import InputAdornment from '@mui/material/InputAdornment';
 import BreadcrumbNav from '../common/BreadcrumbNav';
 import AttachmentUpload from '../common/AttachmentUpload';
 
@@ -299,6 +302,14 @@ const CaseDetail = () => {
   const [editMode, setEditMode] = useState(false);
   const [editableData, setEditableData] = useState(caseData.applicationForm || {});
   const [detailsExpanded, setDetailsExpanded] = useState(true);
+  
+  // Task filtering state
+  const [taskFilter, setTaskFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [stoFilter, setStoFilter] = useState('');
+  const [dueDateFromFilter, setDueDateFromFilter] = useState('');
+  const [dueDateToFilter, setDueDateToFilter] = useState('');
+  const [advancedFilterOpen, setAdvancedFilterOpen] = useState(false);
 
   const applicationData = caseData.applicationForm; // Use the applicationForm from caseData
   
@@ -430,6 +441,33 @@ const CaseDetail = () => {
       title: `${data.caseType} - ${data.fileNo}`,
       status: data.status
     }));
+    
+  // Filter function
+  const handleTaskFilter = (searchText) => {
+    setTaskFilter(searchText);
+  };
+  
+  // Filtered tasks based on all filter criteria
+  const filteredTasks = useMemo(() => {
+    return mockTasks.filter(task => {
+      // Filter by task name
+      const nameMatch = task.name.toLowerCase().includes(taskFilter.toLowerCase());
+      
+      // Filter by status
+      const statusMatch = statusFilter === '' || task.status === statusFilter;
+      
+      // Filter by STO
+      const stoMatch = stoFilter === '' || task.sto.toLowerCase().includes(stoFilter.toLowerCase());
+      
+      // Filter by due date range
+      const dueDateMatch = (
+        (dueDateFromFilter === '' || new Date(task.dueDate) >= new Date(dueDateFromFilter)) &&
+        (dueDateToFilter === '' || new Date(task.dueDate) <= new Date(dueDateToFilter))
+      );
+      
+      return nameMatch && statusMatch && stoMatch && dueDateMatch;
+    });
+  }, [mockTasks, taskFilter, statusFilter, stoFilter, dueDateFromFilter, dueDateToFilter]);
 
   const renderAddress = (address) => {
     if (!address) return 'N/A';
@@ -1217,8 +1255,93 @@ const CaseDetail = () => {
                       <Typography variant="h6">Tasks</Typography>
                       <Button variant="contained" onClick={() => handleTaskClick(null)}>Request Supplementary Information</Button>
                     </Box>
+                    
+                    {/* New Filter Section */}
+                    <Paper sx={{ p: 2, mb: 2, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, alignItems: 'center' }}>
+                      <TextField
+                        label="Search Tasks"
+                        placeholder="Enter task name"
+                        variant="outlined"
+                        size="small"
+                        fullWidth
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <SearchIcon />
+                            </InputAdornment>
+                          ),
+                        }}
+                        onChange={(e) => handleTaskFilter(e.target.value)}
+                        sx={{ flexGrow: 1 }}
+                      />
+                      
+                      <FormControl variant="outlined" size="small" sx={{ minWidth: 150 }}>
+                        <InputLabel>Status</InputLabel>
+                        <Select
+                          label="Status"
+                          value={statusFilter}
+                          onChange={(e) => setStatusFilter(e.target.value)}
+                        >
+                          <MenuItem value="">All</MenuItem>
+                          <MenuItem value="Pending">Pending</MenuItem>
+                          <MenuItem value="In Progress">In Progress</MenuItem>
+                          <MenuItem value="Completed">Completed</MenuItem>
+                          <MenuItem value="Cancelled">Cancelled</MenuItem>
+                        </Select>
+                      </FormControl>
+                      
+                      <Button 
+                        variant="outlined" 
+                        startIcon={<FilterListIcon />}
+                        onClick={() => setAdvancedFilterOpen(!advancedFilterOpen)}
+                      >
+                        More Filters
+                      </Button>
+                    </Paper>
+                    
+                    {/* Advanced Filter Collapse Section */}
+                    <Collapse in={advancedFilterOpen}>
+                      <Paper sx={{ p: 2, mb: 2 }}>
+                        <Grid container spacing={2}>
+                          <Grid item xs={12} sm={6} md={4}>
+                            <TextField
+                              label="STO"
+                              placeholder="Filter by STO"
+                              variant="outlined"
+                              size="small"
+                              fullWidth
+                              onChange={(e) => setStoFilter(e.target.value)}
+                            />
+                          </Grid>
+                          <Grid item xs={12} sm={6} md={4}>
+                            <TextField
+                              label="Due Date From"
+                              type="date"
+                              variant="outlined"
+                              size="small"
+                              fullWidth
+                              InputLabelProps={{ shrink: true }}
+                              onChange={(e) => setDueDateFromFilter(e.target.value)}
+                            />
+                          </Grid>
+                          <Grid item xs={12} sm={6} md={4}>
+                            <TextField
+                              label="Due Date To"
+                              type="date"
+                              variant="outlined"
+                              size="small"
+                              fullWidth
+                              InputLabelProps={{ shrink: true }}
+                              onChange={(e) => setDueDateToFilter(e.target.value)}
+                            />
+                          </Grid>
+                        </Grid>
+                      </Paper>
+                    </Collapse>
+                    
+                    {/* Filtered Task List */}
                     <List>
-                      {mockTasks.map((task) => (
+                      {filteredTasks.map((task) => (
                         <ListItem 
                           key={task.id} 
                           button 
@@ -1244,7 +1367,7 @@ const CaseDetail = () => {
                             secondary={`STO: ${task.sto} | SE: ${task.se} | Due: ${task.dueDate}`}
                             sx={{ mr: 2 }}
                           />
-                           <Chip 
+                          <Chip 
                             label={task.status} 
                             size="small" 
                             color={task.status === 'Pending' ? 'primary' : (task.status === 'In Progress' ? 'warning' : 'success')}
@@ -1253,6 +1376,14 @@ const CaseDetail = () => {
                         </ListItem>
                       ))}
                     </List>
+                    
+                    {filteredTasks.length === 0 && (
+                      <Box sx={{ textAlign: 'center', py: 4 }}>
+                        <Typography variant="body1" color="text.secondary">
+                          No tasks match your filter criteria
+                        </Typography>
+                      </Box>
+                    )}
                   </Box>
                 )}
                 {tabValue === 2 && (
