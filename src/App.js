@@ -1,10 +1,11 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, CssBaseline, createTheme } from '@mui/material';
 import BuildingSearch from './components/building/BuildingSearch';
 import WBRSSearch from './components/wbrs/WBRSSearch';
 import WBRSDetail from './components/wbrs/WBRSDetail';
 import CaseDetail from './components/case/CaseDetail';
+import CaseSearch from './components/case/CaseSearch';
 
 // Create a theme instance
 const theme = createTheme({
@@ -27,10 +28,11 @@ function App() {
       <CssBaseline />
       <Router>
         <Routes>
-          <Route path="/" element={<BuildingSearch />} />
+          <Route path="/" element={<Navigate to="/cases/case001" replace />} />
           <Route path="/buildings" element={<BuildingSearch />} />
           <Route path="/wbrs" element={<WBRSSearch />} />
           <Route path="/wbrs/:id" element={<WBRSDetail />} />
+          <Route path="/cases" element={<CaseSearch />} />
           <Route path="/cases/:id" element={<CaseDetail />} />
         </Routes>
       </Router>
