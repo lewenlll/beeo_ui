@@ -6,6 +6,7 @@ import WBRSSearch from './components/wbrs/WBRSSearch';
 import WBRSDetail from './components/wbrs/WBRSDetail';
 import CaseDetail from './components/case/CaseDetail';
 import CaseSearch from './components/case/CaseSearch';
+import Dashboard from './components/dashboard/Dashboard';
 
 // Create a theme instance
 const theme = createTheme({
@@ -32,6 +33,7 @@ function App() {
           <Route path="/buildings" element={<BuildingSearch />} />
           <Route path="/wbrs" element={<WBRSSearch />} />
           <Route path="/wbrs/:id" element={<WBRSDetail />} />
+          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/cases" element={<CaseSearch />} />
           <Route path="/cases/:id" element={<CaseDetail />} />
         </Routes>
