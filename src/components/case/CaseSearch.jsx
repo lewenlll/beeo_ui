@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Container,
@@ -168,10 +168,10 @@ const CaseSearch = () => {
 
   // Fix: Ensure searchKeywords is up-to-date before filtering
   const [pendingSearch, setPendingSearch] = useState(false);
-
   // Handle search function (refactored to always use latest state)
   const handleSearch = () => {
     setPendingSearch(true);
+    setPage(1); // Reset to first page when searching
   };
 
   // Effect to run filtering when pendingSearch is set
@@ -225,6 +225,14 @@ const CaseSearch = () => {
     setPendingSearch(false);
   }, [pendingSearch]);
 
+  // Effect to check task filters visibility when Accordion changes
+  useEffect(() => {
+    // If any task filter has a value, show the task filters
+    if (searchTaskName || searchTaskStatus || searchTaskSTO) {
+      setShowTaskFilters(true);
+    }
+  }, [searchTaskName, searchTaskStatus, searchTaskSTO]);
+
   // Clear all filters
   const handleClearFilters = () => {
     setSearchKeyword('');
@@ -235,6 +243,7 @@ const CaseSearch = () => {
     setSearchTaskName('');
     setSearchTaskStatus('');
     setSearchTaskSTO('');
+    setShowTaskFilters(false);
     setSearchResults(mockCases);
   };
   
@@ -761,8 +770,7 @@ const CaseSearch = () => {
                     </Grid>
                     
                     {/* Task Filters Accordion */}
-                    <Grid item xs={12}>
-                      <Accordion 
+                    <Grid item xs={12}>                      <Accordion 
                         sx={{ 
                           mt: 2,
                           '&:before': { display: 'none' },
@@ -772,6 +780,8 @@ const CaseSearch = () => {
                           borderRadius: '4px !important',
                           overflow: 'hidden'
                         }}
+                        expanded={showTaskFilters}
+                        onChange={(e, expanded) => setShowTaskFilters(expanded)}
                       >
                         <AccordionSummary
                           expandIcon={<KeyboardArrowDownIcon />}
@@ -841,12 +851,22 @@ const CaseSearch = () => {
                       </Accordion>
                     </Grid>
                     
-                    {/* Search Button - Positioned at bottom of expanded filters */}
-                    <Grid item xs={12}>
-                      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+                    {/* Search Button - Positioned at bottom of expanded filters */}                    <Grid item xs={12}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
+                        <Button
+                          variant="outlined"
+                          onClick={handleClearFilters}
+                          startIcon={<ClearIcon />}
+                          size="medium"
+                        >
+                          Clear All Filters
+                        </Button>
                         <Button 
                           variant="contained" 
-                          onClick={handleSearch}
+                          onClick={() => {
+                            handleSearch();
+                            setFiltersOpen(false);
+                          }}
                           startIcon={<SearchIcon />}
                           size="medium"
                           sx={{ px: 4 }}
