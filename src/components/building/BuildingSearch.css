@@ -1,0 +1,160 @@
+#map-view {
+  width: 100%;
+  height: 100%;
+  border-radius: 4px;
+}
+
+/* Override default ArcGIS attribution styles */
+.esri-attribution {
+  background-color: transparent !important;
+}
+
+.esri-attribution__powered-by {
+  display: none !important;
+}
+
+.esri-attribution a {
+  color: black !important;
+}
+
+.esri-attribution {
+  background-color: transparent !important;
+  font-size: 12px !important;
+  font-family: sans-serif !important;
+  color: black !important;
+}
+
+/* Legend container styles */
+#legend-container {
+  background-color: white;
+  padding: 12px;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.esri-legend {
+  background-color: transparent !important;
+}
+
+.esri-legend__service {
+  padding: 0 !important;
+}
+
+/* Popup styles */
+.esri-popup {
+  max-width: 300px !important;
+}
+
+.esri-popup__header {
+  padding: 8px 12px !important;
+}
+
+.esri-popup__content {
+  padding: 12px !important;
+}
+
+/* Loading indicator */
+.loading-indicator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: rgba(255, 255, 255, 0.9);
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+}
+
+/* Expand widget styles */
+.esri-expand__container {
+  background-color: white !important;
+  border-radius: 4px !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Map widget styles */
+.esri-widget {
+  background-color: white !important;
+  border-radius: 4px !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Sidebar styles */
+.MuiDrawer-paper {
+  background-color: #f5f5f5 !important;
+}
+
+.MuiListItem-root {
+  border-radius: 4px;
+  margin: 4px 8px;
+  width: auto;
+}
+
+.MuiListItem-root:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+.MuiListItem-root.Mui-selected {
+  background-color: #e3f2fd !important;
+}
+
+/* Search form styles */
+.MuiPaper-root {
+  background-color: white !important;
+  border-radius: 8px !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Map container styles */
+.map-container {
+  position: relative;
+  height: 100%;
+  background-color: #f5f5f5;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* Building details panel */
+.building-details {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  right: 20px;
+  background-color: white;
+  padding: 16px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+}
+
+/* Custom loading indicator */
+.loading {
+  display: none;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 50px;
+  height: 50px;
+  border: 2px solid #f3f3f3;
+  border-top: 2px solid #007bff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: translateY(-50%) rotate(0deg); }
+  100% { transform: translateY(-50%) rotate(360deg); }
+}
+
+.esri-widget-button {
+  background-color: white !important;
+  border-radius: 4px !important;
+}
+
+.esri-widget-button:hover {
+  background-color: #f5f5f5 !important;
+} 

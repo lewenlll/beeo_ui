@@ -30,7 +30,12 @@ import {
   Collapse,
   Accordion,
   AccordionSummary,
-  AccordionDetails
+  AccordionDetails,
+  Drawer,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon
 } from '@mui/material';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
@@ -41,6 +46,10 @@ import FilterListIcon from '@mui/icons-material/FilterList';
 import ClearIcon from '@mui/icons-material/Clear';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import EditIcon from '@mui/icons-material/Edit';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import HomeIcon from '@mui/icons-material/Home';
+import ApartmentIcon from '@mui/icons-material/Apartment';
 import BreadcrumbNav from '../common/BreadcrumbNav';
 import { useNavigate } from 'react-router-dom';
 
@@ -126,6 +135,7 @@ const taskStatusOptions = [
 
 const CaseSearch = () => {
   const navigate = useNavigate();
+  const [drawerOpen, setDrawerOpen] = useState(true);
   
   // State for search criteria
   const [searchKeyword, setSearchKeyword] = useState('');
@@ -156,20 +166,30 @@ const CaseSearch = () => {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
 
-  // Handle search function
+  // Fix: Ensure searchKeywords is up-to-date before filtering
+  const [pendingSearch, setPendingSearch] = useState(false);
+
+  // Handle search function (refactored to always use latest state)
   const handleSearch = () => {
+    setPendingSearch(true);
+  };
+
+  // Effect to run filtering when pendingSearch is set
+  React.useEffect(() => {
+    if (!pendingSearch) return;
     // Add current keyword to the keywords array if it's not empty
+    let updatedKeywords = searchKeywords;
     if (searchKeyword.trim() !== '') {
       if (!searchKeywords.includes(searchKeyword.trim())) {
-        setSearchKeywords([...searchKeywords, searchKeyword.trim()]);
+        updatedKeywords = [...searchKeywords, searchKeyword.trim()];
+        setSearchKeywords(updatedKeywords);
       }
       setSearchKeyword(''); // Clear the input field after adding
     }
-    
     // Filter mock data based on all search criteria
     const filteredResults = mockCases.filter(caseItem => {
       // Check if all keywords are included in any of the case fields
-      const keywordsMatch = searchKeywords.length === 0 || searchKeywords.every(keyword => {
+      const keywordsMatch = updatedKeywords.length === 0 || updatedKeywords.every(keyword => {
         const lowerKeyword = keyword.toLowerCase();
         return (
           caseItem.id.toLowerCase().includes(lowerKeyword) ||
@@ -185,13 +205,11 @@ const CaseSearch = () => {
           ))
         );
       });
-      
       // Check case criteria
       const caseMatch = 
         (searchStatus === '' || caseItem.status === searchStatus) &&
         (searchCaseType === '' || caseItem.caseType === searchCaseType) &&
         (searchEngineer === '' || caseItem.caseEngineer.toLowerCase().includes(searchEngineer.toLowerCase()));
-      
       // Check task criteria
       const taskMatch = !showTaskFilters || !caseItem.tasks || caseItem.tasks.some(task => {
         return (
@@ -200,13 +218,12 @@ const CaseSearch = () => {
           (searchTaskSTO === '' || (task.sto && task.sto.toLowerCase().includes(searchTaskSTO.toLowerCase())))
         );
       });
-      
       return keywordsMatch && caseMatch && taskMatch;
     });
-    
     setSearchResults(filteredResults);
     setPage(1); // Reset to first page when searching
-  };
+    setPendingSearch(false);
+  }, [pendingSearch]);
 
   // Clear all filters
   const handleClearFilters = () => {
@@ -392,9 +409,160 @@ const CaseSearch = () => {
   };
 
   return (
-    <Container maxWidth="lg">
-      <Box sx={{ py: 3 }}>
-        {/* Breadcrumb Navigation */}
+    <Box sx={{ display: 'flex', height: '100vh' }}>
+      {/* Sidebar */}
+      <Drawer
+        variant="permanent"
+        sx={{
+          width: drawerOpen ? 240 : 65,
+          flexShrink: 0,
+          transition: theme => theme.transitions.create(['width'], {
+            easing: theme.transitions.easing.sharp,
+            duration: theme.transitions.duration.enteringScreen,
+          }),
+          '& .MuiDrawer-paper': {
+            width: drawerOpen ? 240 : 65,
+            boxSizing: 'border-box',
+            overflowX: 'hidden',
+            transition: theme => theme.transitions.create(['width'], {
+              easing: theme.transitions.easing.sharp,
+              duration: theme.transitions.duration.enteringScreen,
+            }),
+          },
+        }}
+      >
+        {/* Sidebar Header */}
+        {drawerOpen ? (
+          // Expanded sidebar header
+          <Box sx={{ 
+            p: 2, 
+            display: 'flex', 
+            justifyContent: 'space-between',
+            alignItems: 'center' 
+          }}>
+            <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+              BEEO System
+            </Typography>
+            <IconButton 
+              onClick={() => setDrawerOpen(false)}
+              sx={{ color: 'primary.main' }}
+              aria-label="collapse sidebar"
+            >
+              <ChevronLeftIcon />
+            </IconButton>
+          </Box>
+        ) : (
+          // Collapsed sidebar header
+          <Box sx={{ 
+            display: 'flex', 
+            flexDirection: 'column',
+            alignItems: 'center',
+            pt: 2,
+            pb: 1
+          }}>
+            <Typography 
+              variant="h6" 
+              sx={{ 
+                fontWeight: 'bold', 
+                color: 'primary.main',
+                fontSize: '1.1rem',
+                mb: 1
+              }}
+            >
+              BEEO
+            </Typography>
+            <Tooltip title="Expand sidebar" placement="right">
+              <IconButton 
+                onClick={() => setDrawerOpen(true)}
+                sx={{ 
+                  color: 'primary.main',
+                  backgroundColor: 'action.hover',
+                  width: 35,
+                  height: 35,
+                  '&:hover': {
+                    backgroundColor: 'action.selected',
+                  }
+                }}
+                aria-label="expand sidebar"
+              >
+                <ChevronRightIcon />
+              </IconButton>
+            </Tooltip>
+          </Box>
+        )}
+        <Divider />
+        <List sx={{ pt: 1 }}>
+          <Tooltip title={drawerOpen ? "" : "Home"} placement="right">
+            <ListItem 
+              button 
+              component="a" 
+              href="/" 
+              sx={{ 
+                py: 1.5,
+                px: drawerOpen ? 2 : 'auto',
+                justifyContent: drawerOpen ? 'flex-start' : 'center',
+                minHeight: 48
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: drawerOpen ? 40 : 0, mr: drawerOpen ? 2 : 'auto' }}>
+                <HomeIcon color="primary" />
+              </ListItemIcon>
+              {drawerOpen && <ListItemText primary="Home" />}
+            </ListItem>
+          </Tooltip>
+          
+          <Tooltip title={drawerOpen ? "" : "Cases"} placement="right">
+            <ListItem 
+              button 
+              component="a" 
+              href="/cases" 
+              sx={{ 
+                py: 1.5,
+                px: drawerOpen ? 2 : 'auto',
+                justifyContent: drawerOpen ? 'flex-start' : 'center',
+                minHeight: 48
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: drawerOpen ? 40 : 0, mr: drawerOpen ? 2 : 'auto' }}>
+                <SearchIcon color="primary" />
+              </ListItemIcon>
+              {drawerOpen && <ListItemText primary="Cases" />}
+            </ListItem>
+          </Tooltip>
+          
+          <Tooltip title={drawerOpen ? "" : "Buildings"} placement="right">
+            <ListItem 
+              button 
+              component="a" 
+              href="/buildings" 
+              sx={{ 
+                py: 1.5,
+                px: drawerOpen ? 2 : 'auto',
+                justifyContent: drawerOpen ? 'flex-start' : 'center',
+                minHeight: 48
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: drawerOpen ? 40 : 0, mr: drawerOpen ? 2 : 'auto' }}>
+                <ApartmentIcon color="primary" />
+              </ListItemIcon>
+              {drawerOpen && <ListItemText primary="Buildings" />}
+            </ListItem>
+          </Tooltip>
+        </List>
+        <Divider />
+      </Drawer>
+
+      {/* Main Content */}
+      <Box sx={{ 
+        flex: 1, 
+        p: 3, 
+        overflow: 'auto',
+        transition: theme => theme.transitions.create(['margin'], {
+          easing: theme.transitions.easing.sharp,
+          duration: theme.transitions.duration.enteringScreen,
+        }),
+        marginLeft: 0
+      }}>
         <BreadcrumbNav paths={[
           { label: 'Home', path: '/' },
           { label: 'Cases', path: '/cases' },
@@ -1046,7 +1214,7 @@ const CaseSearch = () => {
           {snackbarMessage}
         </Alert>
       </Snackbar>
-    </Container>
+    </Box>
   );
 };
 

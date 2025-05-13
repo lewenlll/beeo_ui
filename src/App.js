@@ -29,7 +29,7 @@ function App() {
       <CssBaseline />
       <Router>
         <Routes>
-          <Route path="/" element={<Navigate to="/cases/case001" replace />} />
+          <Route path="/" element={<Dashboard />} />
           <Route path="/buildings" element={<BuildingSearch />} />
           <Route path="/wbrs" element={<WBRSSearch />} />
           <Route path="/wbrs/:id" element={<WBRSDetail />} />
