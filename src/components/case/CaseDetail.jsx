@@ -551,7 +551,7 @@ const CaseDetail = () => {
                     <Typography variant="h6" sx={{ mr: 1 }}>Case Details</Typography>
                     {!detailsExpanded && (
                       <Typography variant="body2" sx={{ mr: 1, color: 'text.secondary' }}>
-                        {caseData.caseId} | {caseData.caseType}
+                        EMSD/EEO/BC/19/01/06 | {caseData.caseType}
                       </Typography>
                     )}
                     <IconButton 
@@ -573,6 +573,10 @@ const CaseDetail = () => {
                     <Grid item xs={12} sm={6}>
                       <Typography variant="subtitle2" color="text.secondary">Case No.</Typography>
                       <Typography variant="body1">{caseData.caseId}</Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="subtitle2" color="text.secondary">File No.</Typography>
+                      <Typography variant="body1">EMSD/EEO/BC/19/01/06</Typography>
                     </Grid>
                     <Grid item xs={12} sm={6}>
                       <Typography variant="subtitle2" color="text.secondary">Subject Engineer</Typography>
@@ -1346,7 +1350,7 @@ const CaseDetail = () => {
                         startIcon={<FilterListIcon />}
                         onClick={() => setAdvancedFilterOpen(!advancedFilterOpen)}
                       >
-                        More
+                        More Filters
                       </Button>
                       
                       <Button 
@@ -1361,7 +1365,7 @@ const CaseDetail = () => {
                           setAdvancedFilterOpen(false);
                         }}
                       >
-                        Reset
+                        Clear Filters
                       </Button>
                     </Paper>
                     
