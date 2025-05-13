@@ -34,11 +34,14 @@ import {
   Select,
   InputLabel,
   FormControl,
-  Menu
+  Menu,
+  Tooltip
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import EditIcon from '@mui/icons-material/Edit';
 import MenuIcon from '@mui/icons-material/Menu';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import CloseIcon from '@mui/icons-material/Close';
 import CircleIcon from '@mui/icons-material/Circle';
 import HomeIcon from '@mui/icons-material/Home';
@@ -305,7 +308,7 @@ const CaseDetail = () => {
   const [tabValue, setTabValue] = useState(0); // Default to Application tab
   const [taskDrawerOpen, setTaskDrawerOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
-  const [drawerOpen, setDrawerOpen] = useState(false); // For the main sidebar
+  const [drawerOpen, setDrawerOpen] = useState(true); // For the main sidebar, default to open
   const [editMode, setEditMode] = useState(false);
   const [editableData, setEditableData] = useState(caseData.applicationForm || {});
   const [detailsExpanded, setDetailsExpanded] = useState(true);
@@ -488,46 +491,155 @@ const CaseDetail = () => {
       <Drawer
         variant="permanent"
         sx={{
-          width: 240,
+          width: drawerOpen ? 240 : 65,
           flexShrink: 0,
+          transition: theme => theme.transitions.create(['width'], {
+            easing: theme.transitions.easing.sharp,
+            duration: theme.transitions.duration.enteringScreen,
+          }),
           '& .MuiDrawer-paper': {
-            width: 240,
+            width: drawerOpen ? 240 : 65,
             boxSizing: 'border-box',
+            overflowX: 'hidden',
+            transition: theme => theme.transitions.create(['width'], {
+              easing: theme.transitions.easing.sharp,
+              duration: theme.transitions.duration.enteringScreen,
+            }),
           },
         }}
       >
-        <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'primary.main' }}>BEEO System</Typography>
-          <IconButton onClick={() => setDrawerOpen(!drawerOpen)}>
-            <MenuIcon />
-          </IconButton>
-        </Box>
+        {/* Sidebar Header */}
+        {drawerOpen ? (
+          // Expanded sidebar header
+          <Box sx={{ 
+            p: 2, 
+            display: 'flex', 
+            justifyContent: 'space-between',
+            alignItems: 'center' 
+          }}>
+            <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+              BEEO System
+            </Typography>
+            <IconButton 
+              onClick={() => setDrawerOpen(false)}
+              sx={{ color: 'primary.main' }}
+              aria-label="collapse sidebar"
+            >
+              <ChevronLeftIcon />
+            </IconButton>
+          </Box>
+        ) : (
+          // Collapsed sidebar header
+          <Box sx={{ 
+            display: 'flex', 
+            flexDirection: 'column',
+            alignItems: 'center',
+            pt: 2,
+            pb: 1
+          }}>
+            <Typography 
+              variant="h6" 
+              sx={{ 
+                fontWeight: 'bold', 
+                color: 'primary.main',
+                fontSize: '1.1rem',
+                mb: 1
+              }}
+            >
+              BEEO
+            </Typography>
+            <Tooltip title="Expand sidebar" placement="right">
+              <IconButton 
+                onClick={() => setDrawerOpen(true)}
+                sx={{ 
+                  color: 'primary.main',
+                  backgroundColor: 'action.hover',
+                  width: 35,
+                  height: 35,
+                  '&:hover': {
+                    backgroundColor: 'action.selected',
+                  }
+                }}
+                aria-label="expand sidebar"
+              >
+                <ChevronRightIcon />
+              </IconButton>
+            </Tooltip>
+          </Box>
+        )}
         <Divider />
-        <List>
-          <ListItem button component="a" href="/" sx={{ py: 1.5 }}>
-            <ListItemIcon>
-              <HomeIcon color="primary" />
-            </ListItemIcon>
-            <ListItemText primary="Home" />
-          </ListItem>
-          <ListItem button component="a" href="/cases" sx={{ py: 1.5 }}>
-            <ListItemIcon>
-              <SearchIcon color="primary" />
-            </ListItemIcon>
-            <ListItemText primary="Cases" />
-          </ListItem>
-          <ListItem button component="a" href="/buildings" sx={{ py: 1.5 }}>
-            <ListItemIcon>
-              <ApartmentIcon color="primary" />
-            </ListItemIcon>
-            <ListItemText primary="Buildings" />
-          </ListItem>
+        <List sx={{ pt: 1 }}>
+          <Tooltip title={drawerOpen ? "" : "Home"} placement="right">
+            <ListItem 
+              button 
+              component="a" 
+              href="/" 
+              sx={{ 
+                py: 1.5,
+                px: drawerOpen ? 2 : 'auto',
+                justifyContent: drawerOpen ? 'flex-start' : 'center',
+                minHeight: 48
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: drawerOpen ? 40 : 0, mr: drawerOpen ? 2 : 'auto' }}>
+                <HomeIcon color="primary" />
+              </ListItemIcon>
+              {drawerOpen && <ListItemText primary="Home" />}
+            </ListItem>
+          </Tooltip>
+          
+          <Tooltip title={drawerOpen ? "" : "Cases"} placement="right">
+            <ListItem 
+              button 
+              component="a" 
+              href="/cases" 
+              sx={{ 
+                py: 1.5,
+                px: drawerOpen ? 2 : 'auto',
+                justifyContent: drawerOpen ? 'flex-start' : 'center',
+                minHeight: 48
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: drawerOpen ? 40 : 0, mr: drawerOpen ? 2 : 'auto' }}>
+                <SearchIcon color="primary" />
+              </ListItemIcon>
+              {drawerOpen && <ListItemText primary="Cases" />}
+            </ListItem>
+          </Tooltip>
+          
+          <Tooltip title={drawerOpen ? "" : "Buildings"} placement="right">
+            <ListItem 
+              button 
+              component="a" 
+              href="/buildings" 
+              sx={{ 
+                py: 1.5,
+                px: drawerOpen ? 2 : 'auto',
+                justifyContent: drawerOpen ? 'flex-start' : 'center',
+                minHeight: 48
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: drawerOpen ? 40 : 0, mr: drawerOpen ? 2 : 'auto' }}>
+                <ApartmentIcon color="primary" />
+              </ListItemIcon>
+              {drawerOpen && <ListItemText primary="Buildings" />}
+            </ListItem>
+          </Tooltip>
         </List>
         <Divider />
       </Drawer>
 
       {/* Main content */}
-      <Box sx={{ flex: 1, p: 3, overflow: 'hidden' }}>
+      <Box sx={{ 
+        flex: 1, 
+        p: 3, 
+        overflow: 'hidden',
+        transition: theme => theme.transitions.create(['margin'], {
+          easing: theme.transitions.easing.sharp,
+          duration: theme.transitions.duration.enteringScreen,
+        }),
+        marginLeft: 0
+      }}>
         <BreadcrumbNav paths={[
           { label: 'Home', path: '/' },
           { label: 'Cases', path: '/cases' },
