@@ -158,9 +158,28 @@ const BuildingSearch = () => {
   const mapRef = useRef(null);
   const legendRef = useRef(null);
   const searchTimeoutRef = useRef(null);
+  const searchControllerRef = useRef(null);
+  const abortControllerRef = useRef(new AbortController());
   const [suggestedList, setSuggestedList] = useState([]);
+  const componentMountedRef = useRef(true);
+
+  // Create a safe version of setState that checks if component is still mounted
+  const safeSetState = (setter) => (...args) => {
+    if (componentMountedRef.current) {
+      setter(...args);
+    }
+  };
+
+  const safeSetLoading = safeSetState(setLoading);
+  const safeSetCsvData = safeSetState(setCsvData);
+  const safeSetSuggestedList = safeSetState(setSuggestedList);
+  const safeSetSuggestions = safeSetState(setSuggestions);
+  const safeSetSearchResults = safeSetState(setSearchResults);
 
   useEffect(() => {
+    // Mark component as mounted
+    componentMountedRef.current = true;
+    
     // Initialize map with Hong Kong basemap
     const basemapVTURL = "https://mapapi.geodata.gov.hk/gs/api/v1.0.0/vt/basemap/HK80";
     const mapLabelVTUrl = "https://mapapi.geodata.gov.hk/gs/api/v1.0.0/vt/label/hk/tc/HK80";
@@ -203,64 +222,206 @@ const BuildingSearch = () => {
       url: mapLabelVTUrl
     }));
 
-    // Add legend widget
+    // Create a feature layer with proper renderer for the legend
+    const buildingLayer = new FeatureLayer({
+      title: "Buildings",
+      source: [], // Empty source, will be populated via graphics
+      fields: [
+        { name: "ObjectID", type: "oid" },
+        { name: "status", type: "string" }
+      ],
+      objectIdField: "ObjectID",
+      geometryType: "point",
+      spatialReference: { wkid: 2326 },
+      renderer: {
+        type: "unique-value",
+        field: "status",
+        defaultSymbol: new PictureMarkerSymbol({
+          url: mapIcon,
+          width: "24px",
+          height: "24px",
+          yoffset: 12
+        }),
+        uniqueValueInfos: [
+          {
+            value: "registered",
+            symbol: new PictureMarkerSymbol({
+              url: mapIcon2, // Green icon for registered buildings
+              width: "24px",
+              height: "24px",
+              yoffset: 12
+            }),
+            label: "COCR Registered"
+          },
+          {
+            value: "unregistered",
+            symbol: new PictureMarkerSymbol({
+              url: mapIcon, // Blue icon for unregistered buildings
+              width: "24px",
+              height: "24px",
+              yoffset: 12
+            }),
+            label: "Not Registered"
+          }
+        ]
+      }
+    });
+    
+    mapRef.current.add(buildingLayer);
+
+    // Add legend widget with proper configuration
     legendRef.current = new Legend({
       view: mapViewRef.current,
-      container: "legend-container"
+      layerInfos: [{
+        layer: buildingLayer,
+        title: "Building Registration Status"
+      }]
     });
 
     // Add expand widget for legend
     const legendExpand = new Expand({
       view: mapViewRef.current,
-      content: document.getElementById("legend-container"),
+      content: legendRef.current,
       expandIcon: "legend",
       expandTooltip: "Legend"
     });
     mapViewRef.current.ui.add(legendExpand, "top-right");
 
-    // Load CSV data
-    fetch('/cocr.csv')
-      .then(response => response.text())
-      .then(csvData => {
-        const parsedData = parseCSV(csvData);
-        setCsvData(parsedData);
-      })
-      .catch(error => console.error('Error loading CSV:', error));
+    // Load CSV data safely
+    const loadCsvData = async () => {
+      try {
+        const response = await fetch('/cocr.csv', { signal: abortControllerRef.current.signal });
+        if (!response.ok) {
+          throw new Error(`Failed to load CSV: ${response.status} ${response.statusText}`);
+        }
+        const csvText = await response.text();
+        const parsedData = parseCSV(csvText);
+        safeSetCsvData(parsedData);
+      } catch (error) {
+        if (error.name !== 'AbortError' && componentMountedRef.current) {
+          console.error('Error loading CSV:', error);
+        }
+      }
+    };
 
-    // Cleanup
+    loadCsvData();
+
+    // Cleanup function
     return () => {
+      // Mark component as unmounted to prevent state updates
+      componentMountedRef.current = false;
+      
+      // Abort any pending fetch requests
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      
+      // Abort any ongoing search requests
+      if (searchControllerRef.current) {
+        searchControllerRef.current.abort();
+      }
+      
+      // Clear any pending timeouts
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+      
+      // Cleanup map if initialized
       if (mapViewRef.current) {
         mapViewRef.current.destroy();
       }
     };
-  }, []);
+  }, []); // Empty dependency array means this effect runs once on mount
 
-  // --- Search Input Handler ---
+  // --- Search Input Handler with debounce for autocomplete ---
   const handleInputChange = (event) => {
-    setSearchQuery(event.target.value);
+    const value = event.target.value;
+    setSearchQuery(value);
+    
+    // Cancel any previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+      searchTimeoutRef.current = null;
+    }
+    
+    // Only fetch suggestions if input has reasonable length
+    if (value && value.length >= 2) {
+      // Debounce API call with 300ms delay
+      searchTimeoutRef.current = setTimeout(() => {
+        if (componentMountedRef.current) {
+          // Call handleSearch with a flag to indicate this is for autocomplete
+          handleSearch(value, true);
+        }
+      }, 300);
+    } else {
+      // Clear suggestions if input is too short
+      safeSetSuggestions([]);
+    }
   };
 
   // --- Search on Enter ---
   const handleInputKeyDown = (event) => {
     if (event.key === 'Enter') {
-      handleSearch(searchQuery);
+      // Cancel any existing timeout to prevent duplicate searches
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+        searchTimeoutRef.current = null;
+      }
+      // Full search (not just for autocomplete)
+      handleSearch(searchQuery, false);
     }
   };
 
   // --- API Search ---
-  const handleSearch = async (query) => {
-    if (!query) return;
-    setLoading(true);
+  const handleSearch = async (query, isAutocomplete = false) => {
+    if (!query || !componentMountedRef.current) return;
+    
+    safeSetLoading(true);
+    
     try {
+      // Cancel any existing timeout
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+        searchTimeoutRef.current = null;
+      }
+      
+      // Abort any ongoing requests
+      if (searchControllerRef.current) {
+        searchControllerRef.current.abort();
+      }
+      
+      // Create a new controller for this request
+      searchControllerRef.current = new AbortController();
+      
+      // Set a safety timeout to abort the request if it takes too long
+      const timeoutId = setTimeout(() => {
+        if (searchControllerRef.current) {
+          searchControllerRef.current.abort();
+        }
+      }, 15000); // 15 second timeout
+      
+      // Make the API request
       const response = await fetch(`https://www.als.gov.hk/lookup?q=${encodeURIComponent(query)}`, {
         headers: {
           'Accept': 'application/json'
-        }
+        },
+        signal: searchControllerRef.current.signal
       });
+      
+      // Clear the timeout since request completed successfully
+      clearTimeout(timeoutId);
+      
+      // Only process if component is still mounted
+      if (!componentMountedRef.current) return;
+      
       if (!response.ok) throw new Error('Search request failed');
       const data = await response.json();
+      
+      // Only process if component is still mounted
+      if (!componentMountedRef.current) return;
+      
       const suggestedAddresses = data.SuggestedAddress || [];
-      setSuggestedList(suggestedAddresses); // Store for UI display
+      safeSetSuggestedList(suggestedAddresses);
 
       // Build robust suggestion objects for Autocomplete
       const suggestionObjs = suggestedAddresses.map(address => {
@@ -294,6 +455,9 @@ const BuildingSearch = () => {
         };
       });
 
+      // Only process if component is still mounted
+      if (!componentMountedRef.current) return;
+
       // Filter by district if selected
       let filteredSuggestions = suggestionObjs;
       if (selectedDistrict) {
@@ -305,20 +469,26 @@ const BuildingSearch = () => {
       // Remove duplicates by label
       let uniqueSuggestions = [];
       if (Array.isArray(filteredSuggestions)) {
-        console.log('filteredSuggestions:', filteredSuggestions);
         const mapEntries = filteredSuggestions.map(s => [s.label, s]);
-        console.log('mapEntries for Map constructor:', mapEntries);
-        const mapObj = new window.Map(mapEntries); // Explicitly use global Map
+        const mapObj = new window.Map(mapEntries);
         uniqueSuggestions = [...mapObj.values()]; 
       }
 
-      setSuggestions(uniqueSuggestions);
-      setSearchResults(uniqueSuggestions.map(s => s.data));
-      updateMapMarkers(uniqueSuggestions.map(s => s.data));
+      safeSetSuggestions(uniqueSuggestions);
+      safeSetSearchResults(uniqueSuggestions.map(s => s.data));
+      
+      // Only update map if component is mounted
+      if (componentMountedRef.current) {
+        updateMapMarkers(uniqueSuggestions.map(s => s.data));
+      }
     } catch (error) {
-      console.error('Search error:', error);
+      // Only log errors if component is mounted and it's not an abort error
+      if (componentMountedRef.current && error.name !== 'AbortError') {
+        console.error('Search error:', error);
+      }
     } finally {
-      setLoading(false);
+      // Only update loading state if component is mounted
+      safeSetLoading(false);
     }
   };
 
@@ -428,6 +598,11 @@ const BuildingSearch = () => {
   const updateMapMarkers = (buildings) => {
     if (!mapViewRef.current) return;
 
+    // Find the buildingLayer to update for the legend
+    const buildingLayer = mapRef.current.layers.find(layer => 
+      layer.title === "Buildings" && layer.type === "feature"
+    );
+
     // Keep track of existing graphics using a regular object
     const existingGraphics = {};
     mapViewRef.current.graphics.forEach(g => {
@@ -436,6 +611,49 @@ const BuildingSearch = () => {
       }
     });
     
+    // Create features for the legend layer
+    if (buildingLayer) {
+      // Clear existing features
+      buildingLayer.queryFeatures().then(result => {
+        if (result.features.length > 0) {
+          buildingLayer.applyEdits({
+            deleteFeatures: result.features
+          });
+        }
+      }).catch(error => {
+        console.error("Error clearing features:", error);
+      });
+
+      // Add new features based on COCR registration status
+      const legendFeatures = buildings.map((building, index) => {
+        if (!building.coordinates[0] || !building.coordinates[1]) return null;
+        
+        return {
+          geometry: new Point({
+            x: building.coordinates[0],
+            y: building.coordinates[1],
+            spatialReference: { wkid: 2326 }
+          }),
+          attributes: {
+            ObjectID: index + 1,
+            status: building.hasCsvMatch ? "registered" : "unregistered",
+            // Add other attributes for popup display
+            id: building.id,
+            name: building.name,
+            address: building.address,
+            district: building.district
+          }
+        };
+      }).filter(f => f !== null);
+
+      if (legendFeatures.length > 0) {
+        buildingLayer.applyEdits({
+          addFeatures: legendFeatures
+        });
+      }
+    }
+    
+    // Also update regular graphics for better control over appearance
     buildings.forEach(building => {
       if (!building.coordinates[0] || !building.coordinates[1]) return;
 
@@ -490,7 +708,7 @@ const BuildingSearch = () => {
     // Remove graphics that are no longer in the results
     const currentIds = new Set(buildings.map(b => b.id));
     mapViewRef.current.graphics.forEach(g => {
-      if (g.attributes.id && !currentIds.has(g.attributes.id)) {
+      if (g.attributes && g.attributes.id && !currentIds.has(g.attributes.id)) {
         mapViewRef.current.graphics.remove(g);
       }
     });
@@ -498,7 +716,7 @@ const BuildingSearch = () => {
     // Ensure selected building's marker is visible and on top
     if (selectedBuilding) {
       const selectedGraphic = mapViewRef.current.graphics.find(g => 
-        g.attributes.id === selectedBuilding.id
+        g.attributes && g.attributes.id === selectedBuilding.id
       );
       if (selectedGraphic) {
         selectedGraphic.visible = true;
@@ -693,16 +911,61 @@ const BuildingSearch = () => {
         <Paper sx={{ p: 3, mb: 2 }}>
           <Grid container spacing={2} alignItems="center">
             <Grid item xs={12} md={8}>
-              <TextField
-                label="Search Buildings"
-                variant="outlined"
-                fullWidth
-                value={searchQuery}
-                onChange={handleInputChange}
-                onKeyDown={handleInputKeyDown}
-                InputProps={{
-                  endAdornment: loading ? <CircularProgress color="inherit" size={20} /> : null
+              <Autocomplete
+                freeSolo
+                options={suggestions}
+                getOptionLabel={(option) => {
+                  // Handle both string options and object options
+                  return typeof option === 'string' ? option : option.label || '';
                 }}
+                inputValue={searchQuery}
+                onInputChange={(event, newValue) => {
+                  setSearchQuery(newValue);
+                }}
+                onChange={(event, newValue) => {
+                  // Handle selection of an autocomplete option
+                  if (newValue && typeof newValue === 'object' && newValue.data) {
+                    handleBuildingSelect(newValue.data);
+                  }
+                }}
+                filterOptions={(options) => options}
+                renderOption={(props, option) => (
+                  <li {...props}>
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <LocationOnIcon sx={{ color: 'primary.main', mr: 1 }} />
+                      <Box>
+                        {option.label}
+                        {option.data?.hasCsvMatch && (
+                          <Chip 
+                            size="small" 
+                            label="COCR Registered" 
+                            color="primary" 
+                            sx={{ ml: 1, height: 20, fontSize: '0.7rem' }} 
+                          />
+                        )}
+                      </Box>
+                    </Box>
+                  </li>
+                )}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Search Buildings"
+                    variant="outlined"
+                    fullWidth
+                    onKeyDown={handleInputKeyDown}
+                    onChange={handleInputChange}
+                    InputProps={{
+                      ...params.InputProps,
+                      endAdornment: (
+                        <>
+                          {loading ? <CircularProgress color="inherit" size={20} /> : null}
+                          {params.InputProps.endAdornment}
+                        </>
+                      ),
+                    }}
+                  />
+                )}
               />
             </Grid>
             <Grid item xs={12} md={2}>
