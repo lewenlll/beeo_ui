@@ -117,6 +117,32 @@ function colorizeIcon(base64, color) {
   return base64;
 }
 
+// Helper to build a unique label for an address suggestion
+function buildAddressLabel(address) {
+  if (!address) return '';
+  const eng = address.PremisesAddress?.EngPremisesAddress || {};
+  const chi = address.PremisesAddress?.ChiPremisesAddress || {};
+  // Compose English address
+  const engParts = [
+    eng.BuildingName,
+    eng.EngBlock,
+    eng.EngFloor,
+    eng.EngUnit,
+    eng.EngStreet?.StreetName,
+    eng.EngDistrict?.DcDistrict
+  ].filter(Boolean);
+  // Compose Chinese address
+  const chiParts = [
+    chi.BuildingName,
+    chi.ChiBlock,
+    chi.ChiFloor,
+    chi.ChiUnit,
+    chi.ChiStreet?.StreetName,
+    chi.ChiDistrict?.DcDistrict
+  ].filter(Boolean);
+  return `${engParts.join(' ')}${chiParts.length ? ' / ' + chiParts.join(' ') : ''}`;
+}
+
 const BuildingSearch = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -132,7 +158,7 @@ const BuildingSearch = () => {
   const mapRef = useRef(null);
   const legendRef = useRef(null);
   const searchTimeoutRef = useRef(null);
-  const [suggestedList, setSuggestedList] = useState([]); // For displaying SuggestedAddress list
+  const [suggestedList, setSuggestedList] = useState([]);
 
   useEffect(() => {
     // Initialize map with Hong Kong basemap
@@ -152,12 +178,12 @@ const BuildingSearch = () => {
       basemap: basemap
     });
 
-    // Initialize map view with explicit container dimensions
-    const mapContainer = document.getElementById("map-view");
-    if (mapContainer) {
-      mapContainer.style.height = 'calc(100vh - 200px)'; // Adjust height based on your layout
-      mapContainer.style.width = '100%';
-    }
+    // Initialize map view - REMOVED EXPLICIT CONTAINER DIMENSIONS FROM HERE
+    // const mapContainer = document.getElementById("map-view");
+    // if (mapContainer) {
+    //   mapContainer.style.height = 'calc(100vh - 200px)'; // Adjust height based on your layout
+    //   mapContainer.style.width = '100%';
+    // }
 
     mapViewRef.current = new MapView({
       container: "map-view",
@@ -209,6 +235,19 @@ const BuildingSearch = () => {
     };
   }, []);
 
+  // --- Search Input Handler ---
+  const handleInputChange = (event) => {
+    setSearchQuery(event.target.value);
+  };
+
+  // --- Search on Enter ---
+  const handleInputKeyDown = (event) => {
+    if (event.key === 'Enter') {
+      handleSearch(searchQuery);
+    }
+  };
+
+  // --- API Search ---
   const handleSearch = async (query) => {
     if (!query) return;
     setLoading(true);
@@ -222,34 +261,60 @@ const BuildingSearch = () => {
       const data = await response.json();
       const suggestedAddresses = data.SuggestedAddress || [];
       setSuggestedList(suggestedAddresses); // Store for UI display
-      
-      // Match with CSV data
-      const matchedResults = suggestedAddresses.map(address => {
-        const csvMatch = csvData.find(csvItem => 
+
+      // Build robust suggestion objects for Autocomplete
+      const suggestionObjs = suggestedAddresses.map(address => {
+        const label = buildAddressLabel(address.Address);
+        const engDistrict = address.Address?.PremisesAddress?.EngPremisesAddress?.EngDistrict?.DcDistrict || '';
+        const chiDistrict = address.Address?.PremisesAddress?.ChiPremisesAddress?.ChiDistrict?.DcDistrict || '';
+        // CSV match logic
+        const csvMatch = csvData.find(csvItem =>
           csvItem.EngName === address.Address?.PremisesAddress?.EngPremisesAddress?.BuildingName ||
           csvItem.ChiName === address.Address?.PremisesAddress?.ChiPremisesAddress?.BuildingName
         );
-
         return {
-          id: address.Address?.PremisesAddress?.EngPremisesAddress?.BuildingName || '',
-          name: address.Address?.PremisesAddress?.EngPremisesAddress?.BuildingName || '',
-          nameZH: address.Address?.PremisesAddress?.ChiPremisesAddress?.BuildingName || '',
-          address: address.Address?.PremisesAddress?.EngPremisesAddress?.EngStreet?.StreetName || '',
-          addressZH: address.Address?.PremisesAddress?.ChiPremisesAddress?.ChiStreet?.StreetName || '',
-          district: address.Address?.PremisesAddress?.EngPremisesAddress?.EngDistrict?.DcDistrict || '',
-          districtZH: address.Address?.PremisesAddress?.ChiPremisesAddress?.ChiDistrict?.DcDistrict || '',
-          coordinates: [
-            address.Address?.PremisesAddress?.GeospatialInformation?.Easting,
-            address.Address?.PremisesAddress?.GeospatialInformation?.Northing
-          ],
-          hasCsvMatch: !!csvMatch,
-          csvData: csvMatch
+          label,
+          engDistrict,
+          chiDistrict,
+          data: {
+            id: address.Address?.PremisesAddress?.EngPremisesAddress?.BuildingName || '',
+            name: address.Address?.PremisesAddress?.EngPremisesAddress?.BuildingName || '',
+            nameZH: address.Address?.PremisesAddress?.ChiPremisesAddress?.BuildingName || '',
+            address: address.Address?.PremisesAddress?.EngPremisesAddress?.EngStreet?.StreetName || '',
+            addressZH: address.Address?.PremisesAddress?.ChiPremisesAddress?.ChiStreet?.StreetName || '',
+            district: engDistrict,
+            districtZH: chiDistrict,
+            coordinates: [
+              address.Address?.PremisesAddress?.GeospatialInformation?.Easting,
+              address.Address?.PremisesAddress?.GeospatialInformation?.Northing
+            ],
+            hasCsvMatch: !!csvMatch,
+            csvData: csvMatch
+          }
         };
       });
 
-      setSuggestions(matchedResults);
-      setSearchResults(matchedResults);
-      updateMapMarkers(matchedResults);
+      // Filter by district if selected
+      let filteredSuggestions = suggestionObjs;
+      if (selectedDistrict) {
+        filteredSuggestions = suggestionObjs.filter(sug =>
+          sug.engDistrict === selectedDistrict || sug.chiDistrict === selectedDistrict
+        );
+      }
+
+      // Remove duplicates by label
+      let uniqueSuggestions = [];
+      if (Array.isArray(filteredSuggestions)) {
+        console.log('filteredSuggestions:', filteredSuggestions);
+        const mapEntries = filteredSuggestions.map(s => [s.label, s]);
+        console.log('mapEntries for Map constructor:', mapEntries);
+        const mapObj = new window.Map(mapEntries); // Explicitly use global Map
+        uniqueSuggestions = [...mapObj.values()]; 
+      }
+
+      setSuggestions(uniqueSuggestions);
+      setSearchResults(uniqueSuggestions.map(s => s.data));
+      updateMapMarkers(uniqueSuggestions.map(s => s.data));
     } catch (error) {
       console.error('Search error:', error);
     } finally {
@@ -257,91 +322,107 @@ const BuildingSearch = () => {
     }
   };
 
-  const handleInputChange = (event, newValue) => {
-    setSearchQuery(newValue);
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-    searchTimeoutRef.current = setTimeout(() => {
-      handleSearch(newValue);
-    }, 500);
-  };
-
   const handleBuildingSelect = (building) => {
+    console.log('handleBuildingSelect called with:', JSON.stringify(building, null, 2));
     setSelectedBuilding(building);
-    if (mapViewRef.current && building.coordinates[0] && building.coordinates[1]) {
-      // Create point geometry
-      const point = new Point({
-        x: building.coordinates[0],
-        y: building.coordinates[1],
-        spatialReference: new SpatialReference({ wkid: 2326 })
-      });
 
-      // Create marker symbol for selected building
-      const selectedSymbol = new PictureMarkerSymbol({
-        url: building.hasCsvMatch ? mapIcon2 : mapIcon,
-        width: "32px",
-        height: "32px",
-        yoffset: 16
-      });
-
-      // First, add or update the marker
-      const existingGraphic = mapViewRef.current.graphics.find(g => 
-        g.attributes.id === building.id
-      );
-
-      let graphic;
-      if (existingGraphic) {
-        // Update existing graphic
-        existingGraphic.symbol = selectedSymbol;
-        graphic = existingGraphic;
-        // Bring to front
-        mapViewRef.current.graphics.reorder(existingGraphic, mapViewRef.current.graphics.length - 1);
-      } else {
-        // Add new graphic
-        graphic = new Graphic({
-          geometry: point,
-          symbol: selectedSymbol,
-          attributes: building,
-          popupTemplate: {
-            title: building.name,
-            content: [
-              {
-                type: "fields",
-                fieldInfos: [
-                  { fieldName: "nameZH", label: "Building Name (ZH)" },
-                  { fieldName: "address", label: "Address" },
-                  { fieldName: "addressZH", label: "Address (ZH)" },
-                  { fieldName: "district", label: "District" },
-                  { fieldName: "districtZH", label: "District (ZH)" }
-                ]
-              }
-            ]
-          }
-        });
-        mapViewRef.current.graphics.add(graphic);
-      }
-
-      // Ensure the graphic is visible before zooming
-      graphic.visible = true;
-
-      // Center map on selected building with animation
-      mapViewRef.current.goTo({
-        target: point,
-        zoom: 17,
-        scale: 2000
-      }, {
-        duration: 1000,
-        easing: "ease-out"
-      }).then(() => {
-        // Ensure the graphic is still visible after zoom
-        graphic.visible = true;
-        // Bring to front again after zoom
-        mapViewRef.current.graphics.reorder(graphic, mapViewRef.current.graphics.length - 1);
-      }).catch(error => {
-        console.error("Error during map navigation:", error);
-      });
+    if (!mapViewRef.current) {
+      console.error('mapViewRef.current is null in handleBuildingSelect');
+      return;
     }
+    console.log('mapViewRef.current is available');
+
+    if (
+      !building ||
+      !Array.isArray(building.coordinates) ||
+      building.coordinates.length !== 2 ||
+      isNaN(Number(building.coordinates[0])) ||
+      isNaN(Number(building.coordinates[1]))
+    ) {
+      console.error('Invalid building data or coordinates for map centering:', JSON.stringify(building, null, 2));
+      return;
+    }
+    console.log('Building coordinates are valid:', building.coordinates);
+
+    const easting = Number(building.coordinates[0]);
+    const northing = Number(building.coordinates[1]);
+
+    // Create point geometry
+    const point = new Point({
+      x: easting,
+      y: northing,
+      spatialReference: new SpatialReference({ wkid: 2326 })
+    });
+    console.log('Created ArcGIS Point:', JSON.stringify(point.toJSON(), null, 2));
+
+    // Create marker symbol for selected building (Reverted to PictureMarkerSymbol)
+    const selectedSymbol = new PictureMarkerSymbol({
+      url: getMarkerIcon(building.hasCsvMatch),
+      width: "32px",
+      height: "32px",
+      yoffset: 16
+    });
+    console.log('Created PictureMarkerSymbol for selection');
+
+    // First, add or update the marker
+    let graphic = mapViewRef.current.graphics.find(g => 
+      g.attributes && building.id && g.attributes.id === building.id // Check if building.id exists
+    );
+
+    if (graphic) {
+      console.log('Found existing graphic for ID:', building.id);
+      graphic.geometry = point; // Update geometry
+      graphic.symbol = selectedSymbol;
+      graphic.visible = true; // Ensure it's visible
+      mapViewRef.current.graphics.reorder(graphic, mapViewRef.current.graphics.length - 1);
+      console.log('Updated existing graphic');
+    } else {
+      console.log('No existing graphic found for ID:', building.id, '. Creating new one.');
+      graphic = new Graphic({
+        geometry: point,
+        symbol: selectedSymbol,
+        attributes: building, // Ensure building has an ID here
+        visible: true,
+        popupTemplate: {
+          title: building.name,
+          content: [
+            {
+              type: "fields",
+              fieldInfos: [
+                { fieldName: "nameZH", label: "Building Name (ZH)" },
+                { fieldName: "address", label: "Address" },
+                { fieldName: "addressZH", label: "Address (ZH)" },
+                { fieldName: "district", label: "District" },
+                { fieldName: "districtZH", label: "District (ZH)" }
+              ]
+            }
+          ]
+        }
+      });
+      mapViewRef.current.graphics.add(graphic);
+      console.log('Added new graphic to map');
+    }
+
+    // Ensure the graphic is visible before zooming
+    graphic.visible = true;
+
+    console.log('Attempting to goTo point:', JSON.stringify(point.toJSON(), null, 2));
+    mapViewRef.current.goTo({
+      target: point,
+      zoom: 17, // Consider making zoom level more dynamic or ensuring scale is appropriate
+      // scale: 2000 // Using zoom OR scale, not typically both unless intended.
+    }, {
+      duration: 1000,
+      easing: "ease-out"
+    }).then(() => {
+      console.log('mapView.goTo completed successfully.');
+      // Ensure the graphic is still visible and on top after zoom
+      graphic.visible = true;
+      mapViewRef.current.graphics.reorder(graphic, mapViewRef.current.graphics.length - 1);
+      console.log('Graphic reordered and ensured visible after goTo.');
+    }).catch(error => {
+      console.error("Error during map navigation (goTo):", error);
+    });
   };
 
   const updateMapMarkers = (buildings) => {
@@ -364,8 +445,9 @@ const BuildingSearch = () => {
         spatialReference: new SpatialReference({ wkid: 2326 })
       });
 
+      // Reverted to PictureMarkerSymbol for updateMapMarkers
       const symbol = new PictureMarkerSymbol({
-        url: building.hasCsvMatch ? mapIcon2 : mapIcon,
+        url: building.hasCsvMatch ? mapIcon2 : mapIcon, // Or use getMarkerIcon if preferred for consistency
         width: "24px",
         height: "24px",
         yoffset: 12
@@ -610,61 +692,17 @@ const BuildingSearch = () => {
         {/* Search Criteria */}
         <Paper sx={{ p: 3, mb: 2 }}>
           <Grid container spacing={2} alignItems="center">
-            <Grid item xs={12} md={6}>
-              <Autocomplete
-                freeSolo
-                options={suggestions}
-                getOptionLabel={(option) => 
-                  typeof option === 'string' ? option : `${option.name} - ${option.address}`
-                }
+            <Grid item xs={12} md={8}>
+              <TextField
+                label="Search Buildings"
+                variant="outlined"
+                fullWidth
                 value={searchQuery}
-                onChange={(event, newValue) => {
-                  if (typeof newValue === 'object' && newValue) {
-                    handleBuildingSelect(newValue);
-                  }
-                  handleInputChange(event, newValue);
+                onChange={handleInputChange}
+                onKeyDown={handleInputKeyDown}
+                InputProps={{
+                  endAdornment: loading ? <CircularProgress color="inherit" size={20} /> : null
                 }}
-                onInputChange={handleInputChange}
-                loading={loading}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Search Buildings"
-                    variant="outlined"
-                    fullWidth
-                    InputProps={{
-                      ...params.InputProps,
-                      endAdornment: (
-                        <>
-                          {loading ? <CircularProgress color="inherit" size={20} /> : null}
-                          {params.InputProps.endAdornment}
-                        </>
-                      ),
-                    }}
-                  />
-                )}
-                renderOption={(props, option) => (
-                  <ListItem {...props}>
-                    <ListItemText
-                      primary={option.name}
-                      secondary={
-                        <>
-                          <Typography variant="body2" color="text.secondary">
-                            {option.address}
-                          </Typography>
-                          {option.hasCsvMatch && (
-                            <Chip 
-                              label="COCR Registered" 
-                              size="small" 
-                              color="primary"
-                              sx={{ mt: 1 }}
-                            />
-                          )}
-                        </>
-                      }
-                    />
-                  </ListItem>
-                )}
               />
             </Grid>
             <Grid item xs={12} md={2}>
@@ -685,23 +723,6 @@ const BuildingSearch = () => {
               </FormControl>
             </Grid>
             <Grid item xs={12} md={2}>
-              <FormControl fullWidth>
-                <InputLabel>Building Type</InputLabel>
-                <Select
-                  value={selectedType}
-                  label="Building Type"
-                  onChange={(e) => setSelectedType(e.target.value)}
-                >
-                  <MenuItem value="">All Types</MenuItem>
-                  {buildingTypes.map((type) => (
-                    <MenuItem key={type} value={type}>
-                      {type}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} md={2}>
               <Button 
                 variant="contained" 
                 onClick={() => handleSearch(searchQuery)}
@@ -716,12 +737,25 @@ const BuildingSearch = () => {
 
         {/* SuggestedAddress List UI */}
         {suggestedList.length > 0 && (
-          <Paper sx={{ mt: 2, p: 2, bgcolor: '#f7f7f7', borderRadius: 2, boxShadow: 1 }}>
-            <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'bold' }}>Suggested Addresses</Typography>
+          <Box sx={{ 
+            mt: 2, 
+            p: 2, 
+            bgcolor: '#f7f7f7', 
+            borderRadius: 2, 
+            boxShadow: 1,
+            maxHeight: '250px', // Constrain max height
+            overflowY: 'auto'   // Add vertical scroll if content overflows
+          }}>
+            <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'bold' }} component="div">Suggested Addresses</Typography>
             <List>
               {suggestedList.map((item, idx) => {
                 const eng = item.Address?.PremisesAddress?.EngPremisesAddress;
                 const chi = item.Address?.PremisesAddress?.ChiPremisesAddress;
+                // CSV match logic
+                const csvMatch = csvData.find(csvItem =>
+                  csvItem.EngName === eng?.BuildingName ||
+                  csvItem.ChiName === chi?.BuildingName
+                );
                 return (
                   <ListItem button key={idx} alignItems="flex-start" onClick={() => handleBuildingSelect({
                     id: eng?.BuildingName || '',
@@ -732,24 +766,35 @@ const BuildingSearch = () => {
                     district: eng?.EngDistrict?.DcDistrict || '',
                     districtZH: chi?.ChiDistrict?.DcDistrict || '',
                     coordinates: [item.Address?.PremisesAddress?.GeospatialInformation?.Easting, item.Address?.PremisesAddress?.GeospatialInformation?.Northing],
-                    hasCsvMatch: false // You can enhance this with CSV match logic
+                    hasCsvMatch: !!csvMatch,
+                    csvData: csvMatch
                   })}>
                     <ListItemIcon>
                       <LocationOnIcon color="primary" />
                     </ListItemIcon>
                     <ListItemText
-                      primary={<>
-                        <Typography variant="body1" sx={{ fontWeight: 500 }}>{eng?.BuildingName} {eng?.EngStreet?.StreetName} {eng?.EngDistrict?.DcDistrict}</Typography>
-                      </>}
-                      secondary={<>
-                        <Typography variant="body2" color="text.secondary">{chi?.BuildingName} {chi?.ChiStreet?.StreetName} {chi?.ChiDistrict?.DcDistrict}</Typography>
-                      </>}
+                      disableTypography
+                      primary={
+                        <Typography variant="body1" sx={{ fontWeight: 500 }} component="span">
+                          {eng?.BuildingName} {eng?.EngStreet?.StreetName} {eng?.EngDistrict?.DcDistrict}
+                        </Typography>
+                      }
+                      secondary={
+                        <Box component="span" sx={{ display: 'block' }}>
+                          <Typography variant="body2" color="text.secondary" component="span">
+                            {chi?.BuildingName} {chi?.ChiStreet?.StreetName} {chi?.ChiDistrict?.DcDistrict}
+                          </Typography>
+                          {csvMatch && (
+                            <Chip label="COCR Registered" size="small" color="primary" sx={{ ml: 1, mt: 0.5, display: 'inline-flex' }} />
+                          )}
+                        </Box>
+                      }
                     />
                   </ListItem>
                 );
               })}
             </List>
-          </Paper>
+          </Box>
         )}
 
         {/* Map Container */}
@@ -757,10 +802,11 @@ const BuildingSearch = () => {
           flexGrow: 1, 
           position: 'relative', 
           m: 2,
-          height: 'calc(100vh - 200px)', // Set explicit height
-          minHeight: '500px' // Ensure minimum height
+          minHeight: '400px', // Adjust as needed, ensures map has some height
+          display: 'flex', // Added to make inner div take full height if needed
+          flexDirection: 'column' // Added for inner div
         }}>
-          <div id="map-view" style={{ height: '100%', width: '100%' }}></div>
+          <div id="map-view" style={{ height: '100%', width: '100%', flexGrow: 1 }}></div> {/* Ensure this div takes full height of Paper */}
           <div id="legend-container"></div>
           {selectedBuilding && (
             <Paper
