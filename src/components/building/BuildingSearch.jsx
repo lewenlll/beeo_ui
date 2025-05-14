@@ -31,6 +31,10 @@ import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import HomeIcon from '@mui/icons-material/Home';
 import ApartmentIcon from '@mui/icons-material/Apartment';
+import BookmarkIcon from '@mui/icons-material/Bookmark';
+import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
+import BookmarksIcon from '@mui/icons-material/Bookmarks';
+import DeleteIcon from '@mui/icons-material/Delete';
 import BreadcrumbNav from '../common/BreadcrumbNav';
 import Map from '@arcgis/core/Map';
 import MapView from '@arcgis/core/views/MapView';
@@ -154,12 +158,15 @@ const BuildingSearch = () => {
   const [loading, setLoading] = useState(false);
   const [csvData, setCsvData] = useState([]);
   const [drawerOpen, setDrawerOpen] = useState(true);
+  const [bookmarks, setBookmarks] = useState([]);
+  const [showBookmarks, setShowBookmarks] = useState(false);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const mapViewRef = useRef(null);
   const mapRef = useRef(null);
   const legendRef = useRef(null);
   const searchTimeoutRef = useRef(null);
   const searchControllerRef = useRef(null);
-  const abortControllerRef = useRef(new AbortController());
+  const abortControllerRef = useRef(null); // Initialize as null and create later
   const [suggestedList, setSuggestedList] = useState([]);
   const componentMountedRef = useRef(true);
 
@@ -175,163 +182,362 @@ const BuildingSearch = () => {
   const safeSetSuggestedList = safeSetState(setSuggestedList);
   const safeSetSuggestions = safeSetState(setSuggestions);
   const safeSetSearchResults = safeSetState(setSearchResults);
+  const safeSetBookmarks = safeSetState(setBookmarks);
+  const safeSetInitialLoadComplete = safeSetState(setInitialLoadComplete);
 
+  // Load bookmarks from localStorage on initial render
+  useEffect(() => {
+    try {
+      const savedBookmarks = localStorage.getItem('buildingBookmarks');
+      if (savedBookmarks) {
+        safeSetBookmarks(JSON.parse(savedBookmarks));
+      }
+    } catch (error) {
+      console.error('Error loading bookmarks from localStorage:', error);
+    }
+  }, []);
+
+  // Save bookmarks to localStorage whenever they change
+  useEffect(() => {
+    if (bookmarks.length > 0 || localStorage.getItem('buildingBookmarks')) {
+      localStorage.setItem('buildingBookmarks', JSON.stringify(bookmarks));
+    }
+  }, [bookmarks]);
+
+  // Function to toggle bookmark status
+  const toggleBookmark = (building) => {
+    const buildingId = building.id;
+    // Check if building is already bookmarked
+    const isBookmarked = bookmarks.some(b => b.id === buildingId);
+    
+    if (isBookmarked) {
+      // Remove from bookmarks
+      safeSetBookmarks(bookmarks.filter(b => b.id !== buildingId));
+    } else {
+      // Add to bookmarks
+      safeSetBookmarks([...bookmarks, building]);
+    }
+  };
+
+  // Function to check if a building is bookmarked
+  const isBookmarked = (buildingId) => {
+    return bookmarks.some(b => b.id === buildingId);
+  };
+  
+  // Function to clear all bookmarks
+  const clearAllBookmarks = () => {
+    safeSetBookmarks([]);
+    localStorage.removeItem('buildingBookmarks');
+  };
+
+  // Main initialization effect
   useEffect(() => {
     // Mark component as mounted
     componentMountedRef.current = true;
     
-    // Initialize map with Hong Kong basemap
-    const basemapVTURL = "https://mapapi.geodata.gov.hk/gs/api/v1.0.0/vt/basemap/HK80";
-    const mapLabelVTUrl = "https://mapapi.geodata.gov.hk/gs/api/v1.0.0/vt/label/hk/tc/HK80";
-
-    const basemap = new Basemap({
-      baseLayers: [
-        new VectorTileLayer({
-          url: basemapVTURL,
-          copyright: '<a href="https://api.portal.hkmapservice.gov.hk/disclaimer" target="_blank" class="copyright-url">&copy; 地圖資料由地政總署提供</a><div class="copyright-logo" ></div>'
-        })
-      ]
-    });
-
-    mapRef.current = new Map({
-      basemap: basemap
-    });
-
-    // Initialize map view - REMOVED EXPLICIT CONTAINER DIMENSIONS FROM HERE
-    // const mapContainer = document.getElementById("map-view");
-    // if (mapContainer) {
-    //   mapContainer.style.height = 'calc(100vh - 200px)'; // Adjust height based on your layout
-    //   mapContainer.style.width = '100%';
-    // }
-
-    mapViewRef.current = new MapView({
-      container: "map-view",
-      map: mapRef.current,
-      zoom: 11,
-      center: new Point(833359.88495, 822961.986247, new SpatialReference({
-        wkid: 2326
-      })),
-      constraints: {
-        minZoom: 8,
-        maxZoom: 19
-      }
-    });
-
-    // Add label layer
-    mapRef.current.add(new VectorTileLayer({
-      url: mapLabelVTUrl
-    }));
-
-    // Create a feature layer with proper renderer for the legend
-    const buildingLayer = new FeatureLayer({
-      title: "Buildings",
-      source: [], // Empty source, will be populated via graphics
-      fields: [
-        { name: "ObjectID", type: "oid" },
-        { name: "status", type: "string" }
-      ],
-      objectIdField: "ObjectID",
-      geometryType: "point",
-      spatialReference: { wkid: 2326 },
-      renderer: {
-        type: "unique-value",
-        field: "status",
-        defaultSymbol: new PictureMarkerSymbol({
-          url: mapIcon,
-          width: "24px",
-          height: "24px",
-          yoffset: 12
-        }),
-        uniqueValueInfos: [
-          {
-            value: "registered",
-            symbol: new PictureMarkerSymbol({
-              url: mapIcon2, // Green icon for registered buildings
-              width: "24px",
-              height: "24px",
-              yoffset: 12
-            }),
-            label: "COCR Registered"
-          },
-          {
-            value: "unregistered",
-            symbol: new PictureMarkerSymbol({
-              url: mapIcon, // Blue icon for unregistered buildings
-              width: "24px",
-              height: "24px",
-              yoffset: 12
-            }),
-            label: "Not Registered"
-          }
-        ]
-      }
-    });
+    // Create a new AbortController for this component instance
+    abortControllerRef.current = new AbortController();
     
-    mapRef.current.add(buildingLayer);
+    // Initialize ArcGIS map with error handling
+    let mapInitialized = false;
+    
+    try {
+      // Initialize map with Hong Kong basemap
+      const basemapVTURL = "https://mapapi.geodata.gov.hk/gs/api/v1.0.0/vt/basemap/HK80";
+      const mapLabelVTUrl = "https://mapapi.geodata.gov.hk/gs/api/v1.0.0/vt/label/hk/tc/HK80";
 
-    // Add legend widget with proper configuration
-    legendRef.current = new Legend({
-      view: mapViewRef.current,
-      layerInfos: [{
-        layer: buildingLayer,
-        title: "Building Registration Status"
-      }]
-    });
+      const basemap = new Basemap({
+        baseLayers: [
+          new VectorTileLayer({
+            url: basemapVTURL,
+            copyright: '<a href="https://api.portal.hkmapservice.gov.hk/disclaimer" target="_blank" class="copyright-url">&copy; 地圖資料由地政總署提供</a><div class="copyright-logo" ></div>'
+          })
+        ]
+      });
 
-    // Add expand widget for legend
-    const legendExpand = new Expand({
-      view: mapViewRef.current,
-      content: legendRef.current,
-      expandIcon: "legend",
-      expandTooltip: "Legend"
-    });
-    mapViewRef.current.ui.add(legendExpand, "top-right");
+      mapRef.current = new Map({
+        basemap: basemap
+      });
 
-    // Load CSV data safely
+      // Initialize map view with error handling
+      const initMapView = async () => {
+        try {
+          if (!componentMountedRef.current) return; // Exit if component unmounted
+          
+          mapViewRef.current = new MapView({
+            container: "map-view",
+            map: mapRef.current,
+            zoom: 11,
+            center: new Point(833359.88495, 822961.986247, new SpatialReference({
+              wkid: 2326
+            })),
+            constraints: {
+              minZoom: 8,
+              maxZoom: 19
+            }
+          });
+          
+          // Wait for the view to be ready with error handling
+          try {
+            if (!componentMountedRef.current) return; // Exit if component unmounted
+            
+            await mapViewRef.current.when();
+            mapInitialized = true;
+            
+            // Only proceed if component is still mounted
+            if (!componentMountedRef.current) return;
+            
+            // Add label layer
+            mapRef.current.add(new VectorTileLayer({
+              url: mapLabelVTUrl
+            }));
+
+            // Create a feature layer with proper renderer for the legend
+            const buildingLayer = new FeatureLayer({
+              title: "Buildings",
+              source: [], // Empty source, will be populated via graphics
+              fields: [
+                { name: "ObjectID", type: "oid" },
+                { name: "status", type: "string" }
+              ],
+              objectIdField: "ObjectID",
+              geometryType: "point",
+              spatialReference: { wkid: 2326 },
+              renderer: {
+                type: "unique-value",
+                field: "status",
+                defaultSymbol: new PictureMarkerSymbol({
+                  url: mapIcon,
+                  width: "24px",
+                  height: "24px",
+                  yoffset: 12
+                }),
+                uniqueValueInfos: [
+                  {
+                    value: "registered",
+                    symbol: new PictureMarkerSymbol({
+                      url: mapIcon2, // Green icon for registered buildings
+                      width: "24px",
+                      height: "24px",
+                      yoffset: 12
+                    }),
+                    label: "COCR Registered"
+                  },
+                  {
+                    value: "unregistered",
+                    symbol: new PictureMarkerSymbol({
+                      url: mapIcon, // Blue icon for unregistered buildings
+                      width: "24px",
+                      height: "24px",
+                      yoffset: 12
+                    }),
+                    label: "Not Registered"
+                  }
+                ]
+              }
+            });
+            
+            if (!componentMountedRef.current) return; // Exit if component unmounted
+            mapRef.current.add(buildingLayer);
+
+            // Add legend widget with proper configuration - Wrap with try/catch
+            try {
+              if (!componentMountedRef.current) return; // Exit if component unmounted
+              
+              // Create legend with error handling
+              try {
+                legendRef.current = new Legend({
+                  view: mapViewRef.current,
+                  layerInfos: [{
+                    layer: buildingLayer,
+                    title: "Building Registration Status"
+                  }]
+                });
+              } catch (legendError) {
+                if (legendError.name !== 'AbortError' && componentMountedRef.current) {
+                  console.error('Error creating legend widget:', legendError);
+                }
+                // Early return on legend error
+                return;
+              }
+
+              // Check if component is still mounted
+              if (!componentMountedRef.current) return;
+
+              // Create expand widget with error handling
+              let legendExpand;
+              try {
+                legendExpand = new Expand({
+                  view: mapViewRef.current,
+                  content: legendRef.current,
+                  expandIcon: "legend",
+                  expandTooltip: "Legend"
+                });
+              } catch (expandError) {
+                if (expandError.name !== 'AbortError' && componentMountedRef.current) {
+                  console.error('Error creating expand widget:', expandError);
+                }
+                // Early return on expand error
+                return;
+              }
+              
+              // Add the widget with error handling
+              if (!componentMountedRef.current) return; // Exit if component unmounted
+              
+              // Use a Promise with explicit error handling for ui.add
+              try {
+                // Wrap in a promise to catch any potential errors from ui.add
+                await new Promise((resolve, reject) => {
+                  try {
+                    mapViewRef.current.ui.add(legendExpand, "top-right");
+                    resolve();
+                  } catch (err) {
+                    reject(err);
+                  }
+                });
+              } catch (uiError) {
+                if (uiError.name !== 'AbortError' && componentMountedRef.current) {
+                  console.error('Error adding widget to UI:', uiError);
+                }
+              }
+            } catch (error) {
+              // Silently handle errors during legend creation
+              if (error.name !== 'AbortError' && componentMountedRef.current) {
+                console.error('Error creating legend widget:', error);
+              }
+            }
+          } catch (viewError) {
+            // Handle errors during view initialization
+            if (viewError.name !== 'AbortError' && componentMountedRef.current) {
+              console.error('Error initializing map view:', viewError);
+            }
+          }
+        } catch (mapViewError) {
+          // Handle errors during map view creation
+          if (mapViewError.name !== 'AbortError' && componentMountedRef.current) {
+            console.error('Error creating map view:', mapViewError);
+          }
+        } finally {
+          // Mark initialization as complete
+          if (componentMountedRef.current) {
+            safeSetInitialLoadComplete(true);
+          }
+        }
+      };
+      
+      // Start map initialization
+      initMapView().catch(error => {
+        // Handle any unhandled promises during map initialization
+        if (error.name !== 'AbortError' && componentMountedRef.current) {
+          console.error('Unhandled error during map initialization:', error);
+        }
+        // Ensure initialization is marked as complete even on error
+        if (componentMountedRef.current) {
+          safeSetInitialLoadComplete(true);
+        }
+      });
+
+    } catch (mapError) {
+      // Handle errors during map creation
+      if (mapError.name !== 'AbortError' && componentMountedRef.current) {
+        console.error('Error creating map:', mapError);
+      }
+      // Ensure initialization is marked as complete even on error
+      if (componentMountedRef.current) {
+        safeSetInitialLoadComplete(true);
+      }
+    }
+
+    // Load CSV data safely - wrap in a try/catch
     const loadCsvData = async () => {
+      // Only proceed if component is still mounted and controller exists
+      if (!componentMountedRef.current || !abortControllerRef.current) return;
+      
       try {
-        const response = await fetch('/cocr.csv', { signal: abortControllerRef.current.signal });
+        const response = await fetch('/cocr.csv', { 
+          signal: abortControllerRef.current.signal 
+        });
+        
+        // Check if component is still mounted after fetch completes
+        if (!componentMountedRef.current) return;
+        
         if (!response.ok) {
           throw new Error(`Failed to load CSV: ${response.status} ${response.statusText}`);
         }
+        
         const csvText = await response.text();
+        
+        // Check again if component is still mounted
+        if (!componentMountedRef.current) return;
+        
         const parsedData = parseCSV(csvText);
         safeSetCsvData(parsedData);
+        
+        // Mark initial load as complete only after data is loaded
+        safeSetInitialLoadComplete(true);
       } catch (error) {
+        // Silently handle AbortError since it's expected during cleanup
         if (error.name !== 'AbortError' && componentMountedRef.current) {
           console.error('Error loading CSV:', error);
         }
+        
+        // Even if there's an error, mark initialization as complete
+        // so we don't block the UI
+        safeSetInitialLoadComplete(true);
       }
     };
 
-    loadCsvData();
+    // Start loading data separately from map initialization
+    loadCsvData().catch(error => {
+      // Handle any unhandled promises during CSV loading
+      if (error.name !== 'AbortError' && componentMountedRef.current) {
+        console.error('Unhandled error during CSV loading:', error);
+      }
+      // Always mark initialization as complete on error
+      if (componentMountedRef.current) {
+        safeSetInitialLoadComplete(true);
+      }
+    });
 
     // Cleanup function
     return () => {
-      // Mark component as unmounted to prevent state updates
+      // Mark component as unmounted first to prevent new operations
       componentMountedRef.current = false;
-      
-      // Abort any pending fetch requests
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-      
-      // Abort any ongoing search requests
-      if (searchControllerRef.current) {
-        searchControllerRef.current.abort();
-      }
       
       // Clear any pending timeouts
       if (searchTimeoutRef.current) {
         clearTimeout(searchTimeoutRef.current);
+        searchTimeoutRef.current = null;
+      }
+      
+      // Abort any ongoing search requests
+      if (searchControllerRef.current) {
+        try {
+          searchControllerRef.current.abort();
+        } catch (error) {
+          // Silently handle any errors during abort
+        }
+      }
+      
+      // Abort any pending fetch requests
+      if (abortControllerRef.current) {
+        try {
+          abortControllerRef.current.abort();
+        } catch (error) {
+          // Silently handle any errors during abort
+        }
       }
       
       // Cleanup map if initialized
       if (mapViewRef.current) {
-        mapViewRef.current.destroy();
+        try {
+          mapViewRef.current.destroy();
+        } catch (error) {
+          console.error('Error destroying map:', error);
+        }
       }
     };
-  }, []); // Empty dependency array means this effect runs once on mount
+  }, []);
 
   // --- Search Input Handler with debounce for autocomplete ---
   const handleInputChange = (event) => {
@@ -374,7 +580,8 @@ const BuildingSearch = () => {
 
   // --- API Search ---
   const handleSearch = async (query, isAutocomplete = false) => {
-    if (!query || !componentMountedRef.current) return;
+    // Don't attempt search if not fully initialized
+    if (!query || !componentMountedRef.current || !initialLoadComplete) return;
     
     safeSetLoading(true);
     
@@ -387,7 +594,11 @@ const BuildingSearch = () => {
       
       // Abort any ongoing requests
       if (searchControllerRef.current) {
-        searchControllerRef.current.abort();
+        try {
+          searchControllerRef.current.abort();
+        } catch (error) {
+          // Silently handle any errors during abort
+        }
       }
       
       // Create a new controller for this request
@@ -395,27 +606,48 @@ const BuildingSearch = () => {
       
       // Set a safety timeout to abort the request if it takes too long
       const timeoutId = setTimeout(() => {
-        if (searchControllerRef.current) {
+        if (searchControllerRef.current && componentMountedRef.current) {
           searchControllerRef.current.abort();
         }
       }, 15000); // 15 second timeout
       
-      // Make the API request
-      const response = await fetch(`https://www.als.gov.hk/lookup?q=${encodeURIComponent(query)}`, {
-        headers: {
-          'Accept': 'application/json'
-        },
-        signal: searchControllerRef.current.signal
-      });
+      // Make the API request with proper error handling
+      let response;
+      try {
+        response = await fetch(`https://www.als.gov.hk/lookup?q=${encodeURIComponent(query)}`, {
+          headers: {
+            'Accept': 'application/json'
+          },
+          signal: searchControllerRef.current.signal
+        });
+      } catch (fetchError) {
+        // Clear timeout if fetch fails
+        clearTimeout(timeoutId);
+        
+        // Re-throw if not an abort error
+        if (fetchError.name !== 'AbortError') {
+          throw fetchError;
+        } else {
+          // Return early if it's an abort (component unmounted, etc.)
+          return;
+        }
+      }
       
-      // Clear the timeout since request completed successfully
+      // Clear the timeout since request completed
       clearTimeout(timeoutId);
       
       // Only process if component is still mounted
       if (!componentMountedRef.current) return;
       
       if (!response.ok) throw new Error('Search request failed');
-      const data = await response.json();
+      
+      // Parse JSON with error handling
+      let data;
+      try {
+        data = await response.json();
+      } catch (jsonError) {
+        throw new Error(`Failed to parse response: ${jsonError.message}`);
+      }
       
       // Only process if component is still mounted
       if (!componentMountedRef.current) return;
@@ -931,9 +1163,9 @@ const BuildingSearch = () => {
                 filterOptions={(options) => options}
                 renderOption={(props, option) => (
                   <li {...props}>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
                       <LocationOnIcon sx={{ color: 'primary.main', mr: 1 }} />
-                      <Box>
+                      <Box sx={{ flexGrow: 1 }}>
                         {option.label}
                         {option.data?.hasCsvMatch && (
                           <Chip 
@@ -944,6 +1176,21 @@ const BuildingSearch = () => {
                           />
                         )}
                       </Box>
+                      {option.data && (
+                        <Tooltip title={isBookmarked(option.data.id) ? "Remove bookmark" : "Add bookmark"}>
+                          <IconButton 
+                            size="small" 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleBookmark(option.data);
+                            }}
+                          >
+                            {isBookmarked(option.data.id) ? 
+                              <BookmarkIcon color="primary" fontSize="small" /> : 
+                              <BookmarkBorderIcon fontSize="small" />}
+                          </IconButton>
+                        </Tooltip>
+                      )}
                     </Box>
                   </li>
                 )}
@@ -985,18 +1232,109 @@ const BuildingSearch = () => {
                 </Select>
               </FormControl>
             </Grid>
-            <Grid item xs={12} md={2}>
+            <Grid item xs={12} md={1}>
               <Button 
                 variant="contained" 
-                onClick={() => handleSearch(searchQuery)}
+                onClick={() => handleSearch(searchQuery, false)}
                 fullWidth
                 sx={{ height: '56px' }}
               >
                 Search
               </Button>
             </Grid>
+            <Grid item xs={12} md={1}>
+              <Tooltip title="Bookmarked Buildings">
+                <Button
+                  variant={showBookmarks ? "contained" : "outlined"}
+                  color="secondary"
+                  fullWidth
+                  sx={{ height: '56px' }}
+                  onClick={() => setShowBookmarks(!showBookmarks)}
+                >
+                  <BookmarksIcon />
+                </Button>
+              </Tooltip>
+            </Grid>
           </Grid>
         </Paper>
+
+        {/* Bookmarks Panel */}
+        {showBookmarks && (
+          <Paper sx={{ mt: 2, p: 2, mb: 2 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="h6" component="div">
+                <BookmarksIcon sx={{ verticalAlign: 'middle', mr: 1 }} />
+                Bookmarked Buildings ({bookmarks.length})
+              </Typography>
+              {bookmarks.length > 0 && (
+                <Tooltip title="Clear all bookmarks">
+                  <IconButton color="error" onClick={clearAllBookmarks}>
+                    <DeleteIcon />
+                  </IconButton>
+                </Tooltip>
+              )}
+            </Box>
+            
+            {bookmarks.length === 0 ? (
+              <Typography variant="body2" color="text.secondary" sx={{ p: 2, textAlign: 'center' }}>
+                No bookmarked buildings yet. Click the bookmark icon to save buildings for quick access.
+              </Typography>
+            ) : (
+              <List sx={{ maxHeight: '300px', overflow: 'auto' }}>
+                {bookmarks.map((building) => (
+                  <ListItem 
+                    key={building.id}
+                    sx={{ 
+                      borderBottom: '1px solid #eee',
+                      '&:last-child': { borderBottom: 'none' }
+                    }}
+                  >
+                    <ListItemIcon>
+                      <LocationOnIcon color="primary" />
+                    </ListItemIcon>
+                    <ListItemText 
+                      primary={building.name || building.id}
+                      secondary={
+                        <Box component="span">
+                          {building.address}
+                          {building.hasCsvMatch && (
+                            <Chip 
+                              size="small" 
+                              label="COCR Registered" 
+                              color="primary" 
+                              sx={{ ml: 1, height: 20, fontSize: '0.7rem' }} 
+                            />
+                          )}
+                        </Box>
+                      }
+                      primaryTypographyProps={{ fontWeight: 'medium' }}
+                    />
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      <Tooltip title="View on map">
+                        <IconButton 
+                          size="small" 
+                          color="primary"
+                          onClick={() => handleBuildingSelect(building)}
+                        >
+                          <SearchIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Remove bookmark">
+                        <IconButton 
+                          size="small" 
+                          color="error"
+                          onClick={() => toggleBookmark(building)}
+                        >
+                          <BookmarkIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                  </ListItem>
+                ))}
+              </List>
+            )}
+          </Paper>
+        )}
 
         {/* SuggestedAddress List UI */}
         {suggestedList.length > 0 && (
@@ -1083,7 +1421,17 @@ const BuildingSearch = () => {
                 boxShadow: 3
               }}
             >
-              <Typography variant="h6">{selectedBuilding.name}</Typography>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="h6">{selectedBuilding.name}</Typography>
+                <Tooltip title={isBookmarked(selectedBuilding.id) ? "Remove bookmark" : "Add to bookmarks"}>
+                  <IconButton 
+                    onClick={() => toggleBookmark(selectedBuilding)}
+                    color={isBookmarked(selectedBuilding.id) ? "primary" : "default"}
+                  >
+                    {isBookmarked(selectedBuilding.id) ? <BookmarkIcon /> : <BookmarkBorderIcon />}
+                  </IconButton>
+                </Tooltip>
+              </Box>
               <Typography variant="body2" color="text.secondary">
                 {selectedBuilding.address}
               </Typography>
