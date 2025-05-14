@@ -1,26 +1,52 @@
 import React, { useEffect, useState } from 'react';
+import {
+  Box,
+  Typography,
+  Drawer,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  IconButton,
+  Divider,
+  Tooltip,
+  Paper,
+  Fab,
+  Badge,
+  Grow,
+  Chip
+} from '@mui/material';
+import HomeIcon from '@mui/icons-material/Home';
+import SearchIcon from '@mui/icons-material/Search';
+import ApartmentIcon from '@mui/icons-material/Apartment';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import MailOutlineIcon from '@mui/icons-material/MailOutline';
+import CloseIcon from '@mui/icons-material/Close';
 import './Dashboard.css';
 
 const Dashboard = () => {
+  const [drawerOpen, setDrawerOpen] = useState(true);
+  const [inboxExpanded, setInboxExpanded] = useState(false);
   const [inboxMessages, setInboxMessages] = useState([
     {
       id: 1,
       subject: "New Case Assignment",
-      content: "You have been assigned to Case #12345 - Building Inspection at 123 Main Street",
+      content: "You have been assigned to Case #001 - REA New Application",
       date: "2024-03-20 09:30 AM",
       status: "unread"
     },
     {
       id: 2,
-      subject: "Case Update Required",
-      content: "Please update the inspection report for Case #12340 - Safety Assessment",
+      subject: "Task Pending for Your Follow-up",
+      content: "Please follow-up the Review Submitted Documents for Case #001 - REA New Application",
       date: "2024-03-19 02:15 PM",
       status: "read"
     },
     {
       id: 3,
-      subject: "Urgent: Follow-up Required",
-      content: "Immediate attention needed for Case #12338 - Emergency Maintenance",
+      subject: "Task Pending for Your Follow-up",
+      content: "Please follow-up the Prepare / Issue Acknowledgement Letter Annex F1 for Case #001 - REA New Application",
       date: "2024-03-18 11:45 AM",
       status: "unread"
     }
@@ -46,41 +72,263 @@ const Dashboard = () => {
     );
   };
 
+  const unreadCount = inboxMessages.filter(msg => msg.status === 'unread').length;
+
   return (
-    <div className="dashboard-container">
-      <div className="dashboard-content">
-        <div className="tableau-container">
-          <tableau-viz
-            id="tableau-viz"
-            src="https://prod-apsoutheast-b.online.tableau.com/t/hoho147-967601ea99/views/Dashboard_Templatev0_2/Dashboard1"
-            width="100%"
-            height="600px"
-            hide-tabs
-            toolbar="bottom"
-          ></tableau-viz>
-        </div>
-        
-        <div className="inbox-container">
-          <h2>Inbox Messages</h2>
-          <div className="inbox-messages">
-            {inboxMessages.map((message) => (
-              <div 
-                key={message.id} 
-                className={`message-card ${message.status === 'unread' ? 'unread' : ''}`}
-                onClick={() => markAsRead(message.id)}
+    <Box sx={{ display: 'flex', height: '100vh' }}>
+      {/* Sidebar */}
+      <Drawer
+        variant="permanent"
+        sx={{
+          width: drawerOpen ? 240 : 65,
+          flexShrink: 0,
+          transition: theme => theme.transitions.create(['width'], {
+            easing: theme.transitions.easing.sharp,
+            duration: theme.transitions.duration.enteringScreen,
+          }),
+          '& .MuiDrawer-paper': {
+            width: drawerOpen ? 240 : 65,
+            boxSizing: 'border-box',
+            overflowX: 'hidden',
+            transition: theme => theme.transitions.create(['width'], {
+              easing: theme.transitions.easing.sharp,
+              duration: theme.transitions.duration.enteringScreen,
+            }),
+          },
+        }}
+      >
+        {/* Sidebar Header */}
+        {drawerOpen ? (
+          <Box sx={{ 
+            p: 2, 
+            display: 'flex', 
+            justifyContent: 'space-between',
+            alignItems: 'center' 
+          }}>
+            <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+              BEEO System
+            </Typography>
+            <IconButton 
+              onClick={() => setDrawerOpen(false)}
+              sx={{ color: 'primary.main' }}
+              aria-label="collapse sidebar"
+            >
+              <ChevronLeftIcon />
+            </IconButton>
+          </Box>
+        ) : (
+          <Box sx={{ 
+            display: 'flex', 
+            flexDirection: 'column',
+            alignItems: 'center',
+            pt: 2,
+            pb: 1
+          }}>
+            <Typography 
+              variant="h6" 
+              sx={{ 
+                fontWeight: 'bold', 
+                color: 'primary.main',
+                fontSize: '1.1rem',
+                mb: 1
+              }}
+            >
+              BEEO
+            </Typography>
+            <Tooltip title="Expand sidebar" placement="right">
+              <IconButton 
+                onClick={() => setDrawerOpen(true)}
+                sx={{ 
+                  color: 'primary.main',
+                  backgroundColor: 'action.hover',
+                  width: 35,
+                  height: 35,
+                  '&:hover': {
+                    backgroundColor: 'action.selected',
+                  }
+                }}
+                aria-label="expand sidebar"
               >
-                <div className="message-header">
-                  <h3>{message.subject}</h3>
-                  {message.status === 'unread' && <span className="unread-badge">New</span>}
-                </div>
-                <p>{message.content}</p>
-                <span className="message-date">{message.date}</span>
-              </div>
-            ))}
-          </div>
+                <ChevronRightIcon />
+              </IconButton>
+            </Tooltip>
+          </Box>
+        )}
+        <Divider />
+        <List sx={{ pt: 1 }}>
+          <Tooltip title={drawerOpen ? "" : "Home"} placement="right">
+            <ListItem 
+              button 
+              component="a" 
+              href="/" 
+              sx={{ 
+                py: 1.5,
+                px: drawerOpen ? 2 : 'auto',
+                justifyContent: drawerOpen ? 'flex-start' : 'center',
+                minHeight: 48
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: drawerOpen ? 40 : 0, mr: drawerOpen ? 2 : 'auto' }}>
+                <HomeIcon color="primary" />
+              </ListItemIcon>
+              {drawerOpen && <ListItemText primary="Home" />}
+            </ListItem>
+          </Tooltip>
+          
+          <Tooltip title={drawerOpen ? "" : "Cases"} placement="right">
+            <ListItem 
+              button 
+              component="a" 
+              href="/cases" 
+              sx={{ 
+                py: 1.5,
+                px: drawerOpen ? 2 : 'auto',
+                justifyContent: drawerOpen ? 'flex-start' : 'center',
+                minHeight: 48
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: drawerOpen ? 40 : 0, mr: drawerOpen ? 2 : 'auto' }}>
+                <SearchIcon color="primary" />
+              </ListItemIcon>
+              {drawerOpen && <ListItemText primary="Cases" />}
+            </ListItem>
+          </Tooltip>
+          
+          <Tooltip title={drawerOpen ? "" : "Buildings"} placement="right">
+            <ListItem 
+              button 
+              component="a" 
+              href="/buildings" 
+              sx={{ 
+                py: 1.5,
+                px: drawerOpen ? 2 : 'auto',
+                justifyContent: drawerOpen ? 'flex-start' : 'center',
+                minHeight: 48
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: drawerOpen ? 40 : 0, mr: drawerOpen ? 2 : 'auto' }}>
+                <ApartmentIcon color="primary" />
+              </ListItemIcon>
+              {drawerOpen && <ListItemText primary="Buildings" />}
+            </ListItem>
+          </Tooltip>
+        </List>
+        <Divider />
+      </Drawer>
+
+      {/* Main Content */}
+      <Box sx={{ flex: 1, p: 3, overflow: 'auto', position: 'relative' }}>
+        <div className="dashboard-content">
+          {/* Tableau Dashboard */}
+          <Paper sx={{ mb: 3, borderRadius: 2, overflow: 'hidden' }}>
+            <div className="tableau-container">
+              <tableau-viz
+                id="tableau-viz"
+                src="https://prod-apsoutheast-b.online.tableau.com/t/hoho147-967601ea99/views/Dashboard_Templatev0_2/Dashboard1"
+                device="desktop"
+                width="100%"
+                height="600px"
+                hide-tabs
+                toolbar="bottom"
+              ></tableau-viz>
+            </div>
+          </Paper>
+          
+          {/* REMOVED Old Inbox Section */}
         </div>
-      </div>
-    </div>
+
+        {/* Floating Inbox Button */}
+        {!inboxExpanded && (
+          <Fab
+            color="primary"
+            aria-label="inbox"
+            sx={{
+              position: 'fixed',
+              bottom: (theme) => theme.spacing(3), 
+              right: (theme) => theme.spacing(3),
+              zIndex: (theme) => theme.zIndex.drawer + 100 
+            }}
+            onClick={() => setInboxExpanded(true)}
+          >
+            <Badge badgeContent={unreadCount} color="error">
+              <MailOutlineIcon />
+            </Badge>
+          </Fab>
+        )}
+
+        {/* Expanded Inbox Panel */}
+        <Grow in={inboxExpanded} mountOnEnter unmountOnExit>
+          <Paper
+            elevation={8}
+            sx={{
+              position: 'fixed',
+              bottom: (theme) => theme.spacing(3), 
+              right: (theme) => theme.spacing(3),
+              width: 380, 
+              maxHeight: 'calc(100vh - 120px)', // Adjusted for better screen fit
+              height: 500, // Give a substantial default height
+              display: 'flex',
+              flexDirection: 'column',
+              zIndex: (theme) => theme.zIndex.drawer + 100,
+              borderRadius: 2, 
+              overflow: 'hidden',
+              transformOrigin: 'bottom right', // For Grow transition
+            }}
+          >
+            <Box
+              sx={{
+                p: 1.5, // Reduced padding for a tighter header
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                bgcolor: 'primary.main',
+                color: 'white',
+              }}
+            >
+              <Typography variant="h6" sx={{ fontSize: '1.1rem' }}>Inbox Messages</Typography> {/* Slightly smaller title */}
+              <IconButton color="inherit" size="small" onClick={() => setInboxExpanded(false)} aria-label="close inbox">
+                <CloseIcon />
+              </IconButton>
+            </Box>
+            <Box sx={{ p: 2, overflowY: 'auto', flexGrow: 1, backgroundColor: 'background.paper' }}>
+              {/* Message list rendering (same as current) */}
+               <div className="inbox-messages">
+                {inboxMessages.length === 0 && (
+                  <Typography sx={{ textAlign: 'center', color: 'text.secondary', mt: 2}}>
+                    No messages in your inbox.
+                  </Typography>
+                )}
+                {inboxMessages.map((message) => (
+                  <div 
+                    key={message.id} 
+                    className={`message-card ${message.status === 'unread' ? 'unread' : ''}`}
+                    onClick={() => markAsRead(message.id)}
+                    // Add some hover effect for better UX
+                    sx={{
+                        cursor: 'pointer',
+                        '&:hover': {
+                            backgroundColor: 'action.hover'
+                        }
+                    }}
+                  >
+                    <div className="message-header">
+                      <Typography variant="subtitle1" component="h3" sx={{ fontWeight: message.status === 'unread' ? 'bold' : 'normal' }}>
+                        {message.subject}
+                      </Typography>
+                      {message.status === 'unread' && 
+                        <Chip label="New" size="small" color="error" sx={{ ml: 1, height: 'auto', fontSize: '0.7rem' }} />
+                      }
+                    </div>
+                    <Typography variant="body2" sx={{ my: 0.5 }}>{message.content}</Typography>
+                    <Typography variant="caption" color="text.secondary" component="span" sx={{ fontSize: '0.75rem' }}>{message.date}</Typography>
+                  </div>
+                ))}
+              </div>
+            </Box>
+          </Paper>
+        </Grow>
+      </Box>
+    </Box>
   );
 };
 
