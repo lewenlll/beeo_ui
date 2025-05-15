@@ -17,25 +17,25 @@ import {
   Grid,
   Chip,
   CircularProgress,
-  Drawer,
+  Tooltip,
   IconButton,
-  Divider,
   ListItemIcon,
-  Tooltip
+  Collapse
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import SearchIcon from '@mui/icons-material/Search';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import InfoIcon from '@mui/icons-material/Info';
-import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
-import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import HomeIcon from '@mui/icons-material/Home';
-import ApartmentIcon from '@mui/icons-material/Apartment';
 import BookmarkIcon from '@mui/icons-material/Bookmark';
 import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
 import BookmarksIcon from '@mui/icons-material/Bookmarks';
 import DeleteIcon from '@mui/icons-material/Delete';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import BreadcrumbNav from '../common/BreadcrumbNav';
+import AppSidebar from '../common/AppSidebar';
 import Map from '@arcgis/core/Map';
 import MapView from '@arcgis/core/views/MapView';
 import Point from '@arcgis/core/geometry/Point';
@@ -161,6 +161,7 @@ const BuildingSearch = () => {
   const [bookmarks, setBookmarks] = useState([]);
   const [showBookmarks, setShowBookmarks] = useState(false);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+  const [addressPanelOpen, setAddressPanelOpen] = useState(true);
   const mapViewRef = useRef(null);
   const mapRef = useRef(null);
   const legendRef = useRef(null);
@@ -204,24 +205,57 @@ const BuildingSearch = () => {
     }
   }, [bookmarks]);
 
+  // Function to create a unique identifier for a building
+  const getUniqueId = (building) => {
+    // Use GeoAddress as the primary unique identifier if available
+    if (building.geoAddress) {
+      return building.geoAddress;
+    }
+    // Fallback 1: Use coordinates for buildings without GeoAddress
+    else if (building.coordinates && building.coordinates.length === 2) {
+      return `${building.name}-${building.coordinates[0]}-${building.coordinates[1]}`;
+    }
+    // Fallback 2: Use name + address
+    else if (building.address && building.name) {
+      return `${building.name}-${building.address}`;
+    }
+    // Last fallback to original id
+    return building.id;
+  };
+
   // Function to toggle bookmark status
   const toggleBookmark = (building) => {
-    const buildingId = building.id;
-    // Check if building is already bookmarked
-    const isBookmarked = bookmarks.some(b => b.id === buildingId);
+    // Create a unique ID that differentiates buildings with the same name
+    const uniqueId = getUniqueId(building);
     
-    if (isBookmarked) {
+    // Add uniqueId to the building object for future reference
+    const buildingWithUniqueId = { ...building, uniqueId };
+    
+    // Check if building is already bookmarked
+    const isAlreadyBookmarked = bookmarks.some(b => getUniqueId(b) === uniqueId);
+    
+    if (isAlreadyBookmarked) {
       // Remove from bookmarks
-      safeSetBookmarks(bookmarks.filter(b => b.id !== buildingId));
+      safeSetBookmarks(bookmarks.filter(b => getUniqueId(b) !== uniqueId));
     } else {
       // Add to bookmarks
-      safeSetBookmarks([...bookmarks, building]);
+      safeSetBookmarks([...bookmarks, buildingWithUniqueId]);
     }
   };
 
   // Function to check if a building is bookmarked
-  const isBookmarked = (buildingId) => {
-    return bookmarks.some(b => b.id === buildingId);
+  const isBookmarked = (buildingOrId) => {
+    // Check if we got a building object or just an ID
+    if (typeof buildingOrId === 'object') {
+      return bookmarks.some(b => getUniqueId(b) === getUniqueId(buildingOrId));
+    }
+    
+    // If we just got an ID (string), check if any bookmark has this ID or uniqueId
+    // This maintains backward compatibility
+    return bookmarks.some(b => 
+      b.id === buildingOrId || 
+      b.uniqueId === buildingOrId
+    );
   };
   
   // Function to clear all bookmarks
@@ -681,6 +715,7 @@ const BuildingSearch = () => {
               address.Address?.PremisesAddress?.GeospatialInformation?.Easting,
               address.Address?.PremisesAddress?.GeospatialInformation?.Northing
             ],
+            geoAddress: address.Address?.PremisesAddress?.GeoAddress || '',
             hasCsvMatch: !!csvMatch,
             csvData: csvMatch
           }
@@ -985,146 +1020,7 @@ const BuildingSearch = () => {
   return (
     <Box sx={{ display: 'flex', height: '100vh' }}>
       {/* Sidebar */}
-      <Drawer
-        variant="permanent"
-        sx={{
-          width: drawerOpen ? 240 : 65,
-          flexShrink: 0,
-          transition: theme => theme.transitions.create(['width'], {
-            easing: theme.transitions.easing.sharp,
-            duration: theme.transitions.duration.enteringScreen,
-          }),
-          '& .MuiDrawer-paper': {
-            width: drawerOpen ? 240 : 65,
-            boxSizing: 'border-box',
-            overflowX: 'hidden',
-            transition: theme => theme.transitions.create(['width'], {
-              easing: theme.transitions.easing.sharp,
-              duration: theme.transitions.duration.enteringScreen,
-            }),
-          },
-        }}
-      >
-        {/* Sidebar Header */}
-        {drawerOpen ? (
-          // Expanded sidebar header
-          <Box sx={{ 
-            p: 2, 
-            display: 'flex', 
-            justifyContent: 'space-between',
-            alignItems: 'center' 
-          }}>
-            <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
-              BEEO System
-            </Typography>
-            <IconButton 
-              onClick={() => setDrawerOpen(false)}
-              sx={{ color: 'primary.main' }}
-              aria-label="collapse sidebar"
-            >
-              <ChevronLeftIcon />
-            </IconButton>
-          </Box>
-        ) : (
-          // Collapsed sidebar header
-          <Box sx={{ 
-            display: 'flex', 
-            flexDirection: 'column',
-            alignItems: 'center',
-            pt: 2,
-            pb: 1
-          }}>
-            <Typography 
-              variant="h6" 
-              sx={{ 
-                fontWeight: 'bold', 
-                color: 'primary.main',
-                fontSize: '1.1rem',
-                mb: 1
-              }}
-            >
-              BEEO
-            </Typography>
-            <Tooltip title="Expand sidebar" placement="right">
-              <IconButton 
-                onClick={() => setDrawerOpen(true)}
-                sx={{ 
-                  color: 'primary.main',
-                  backgroundColor: 'action.hover',
-                  width: 35,
-                  height: 35,
-                  '&:hover': {
-                    backgroundColor: 'action.selected',
-                  }
-                }}
-                aria-label="expand sidebar"
-              >
-                <ChevronRightIcon />
-              </IconButton>
-            </Tooltip>
-          </Box>
-        )}
-        <Divider />
-        <List sx={{ pt: 1 }}>
-          <Tooltip title={drawerOpen ? "" : "Home"} placement="right">
-            <ListItem 
-              button 
-              component="a" 
-              href="/" 
-              sx={{ 
-                py: 1.5,
-                px: drawerOpen ? 2 : 'auto',
-                justifyContent: drawerOpen ? 'flex-start' : 'center',
-                minHeight: 48
-              }}
-            >
-              <ListItemIcon sx={{ minWidth: drawerOpen ? 40 : 0, mr: drawerOpen ? 2 : 'auto' }}>
-                <HomeIcon color="primary" />
-              </ListItemIcon>
-              {drawerOpen && <ListItemText primary="Home" />}
-            </ListItem>
-          </Tooltip>
-          
-          <Tooltip title={drawerOpen ? "" : "Cases"} placement="right">
-            <ListItem 
-              button 
-              component="a" 
-              href="/cases" 
-              sx={{ 
-                py: 1.5,
-                px: drawerOpen ? 2 : 'auto',
-                justifyContent: drawerOpen ? 'flex-start' : 'center',
-                minHeight: 48
-              }}
-            >
-              <ListItemIcon sx={{ minWidth: drawerOpen ? 40 : 0, mr: drawerOpen ? 2 : 'auto' }}>
-                <SearchIcon color="primary" />
-              </ListItemIcon>
-              {drawerOpen && <ListItemText primary="Cases" />}
-            </ListItem>
-          </Tooltip>
-          
-          <Tooltip title={drawerOpen ? "" : "Buildings"} placement="right">
-            <ListItem 
-              button 
-              component="a" 
-              href="/buildings" 
-              sx={{ 
-                py: 1.5,
-                px: drawerOpen ? 2 : 'auto',
-                justifyContent: drawerOpen ? 'flex-start' : 'center',
-                minHeight: 48
-              }}
-            >
-              <ListItemIcon sx={{ minWidth: drawerOpen ? 40 : 0, mr: drawerOpen ? 2 : 'auto' }}>
-                <ApartmentIcon color="primary" />
-              </ListItemIcon>
-              {drawerOpen && <ListItemText primary="Buildings" />}
-            </ListItem>
-          </Tooltip>
-        </List>
-        <Divider />
-      </Drawer>
+      <AppSidebar drawerOpen={drawerOpen} setDrawerOpen={setDrawerOpen} />
 
       {/* Main Content */}
       <Box sx={{ 
@@ -1177,7 +1073,7 @@ const BuildingSearch = () => {
                         )}
                       </Box>
                       {option.data && (
-                        <Tooltip title={isBookmarked(option.data.id) ? "Remove bookmark" : "Add bookmark"}>
+                        <Tooltip title={isBookmarked(option.data) ? "Remove bookmark" : "Add bookmark"}>
                           <IconButton 
                             size="small" 
                             onClick={(e) => {
@@ -1185,7 +1081,7 @@ const BuildingSearch = () => {
                               toggleBookmark(option.data);
                             }}
                           >
-                            {isBookmarked(option.data.id) ? 
+                            {isBookmarked(option.data) ? 
                               <BookmarkIcon color="primary" fontSize="small" /> : 
                               <BookmarkBorderIcon fontSize="small" />}
                           </IconButton>
@@ -1336,122 +1232,329 @@ const BuildingSearch = () => {
           </Paper>
         )}
 
-        {/* SuggestedAddress List UI */}
-        {suggestedList.length > 0 && (
-          <Box sx={{ 
-            mt: 2, 
-            p: 2, 
-            bgcolor: '#f7f7f7', 
-            borderRadius: 2, 
-            boxShadow: 1,
-            maxHeight: '250px', // Constrain max height
-            overflowY: 'auto'   // Add vertical scroll if content overflows
-          }}>
-            <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'bold' }} component="div">Suggested Addresses</Typography>
-            <List>
-              {suggestedList.map((item, idx) => {
-                const eng = item.Address?.PremisesAddress?.EngPremisesAddress;
-                const chi = item.Address?.PremisesAddress?.ChiPremisesAddress;
-                // CSV match logic
-                const csvMatch = csvData.find(csvItem =>
-                  csvItem.EngName === eng?.BuildingName ||
-                  csvItem.ChiName === chi?.BuildingName
-                );
-                return (
-                  <ListItem button key={idx} alignItems="flex-start" onClick={() => handleBuildingSelect({
-                    id: eng?.BuildingName || '',
-                    name: eng?.BuildingName || '',
-                    nameZH: chi?.BuildingName || '',
-                    address: eng?.EngStreet?.StreetName || '',
-                    addressZH: chi?.ChiStreet?.StreetName || '',
-                    district: eng?.EngDistrict?.DcDistrict || '',
-                    districtZH: chi?.ChiDistrict?.DcDistrict || '',
-                    coordinates: [item.Address?.PremisesAddress?.GeospatialInformation?.Easting, item.Address?.PremisesAddress?.GeospatialInformation?.Northing],
-                    hasCsvMatch: !!csvMatch,
-                    csvData: csvMatch
-                  })}>
-                    <ListItemIcon>
-                      <LocationOnIcon color="primary" />
-                    </ListItemIcon>
-                    <ListItemText
-                      disableTypography
-                      primary={
-                        <Typography variant="body1" sx={{ fontWeight: 500 }} component="span">
-                          {eng?.BuildingName} {eng?.EngStreet?.StreetName} {eng?.EngDistrict?.DcDistrict}
-                        </Typography>
+        {/* Map and Results Container - Two-column layout */}
+        <Box sx={{ display: 'flex', flexDirection: 'row', gap: 2, height: '700px', mt: 2 }}>
+          {/* Suggested Address List - Left Column */}
+          {suggestedList.length > 0 && (
+            <Paper sx={{ 
+              width: addressPanelOpen ? '350px' : '50px',
+              flexShrink: 0,
+              p: addressPanelOpen ? 2 : 1,
+              bgcolor: '#f7f7f7', 
+              borderRadius: 2, 
+              boxShadow: 1,
+              overflowY: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              transition: 'width 0.3s ease, padding 0.3s ease',
+              position: 'relative'
+            }}>
+              {/* Vertical label for collapsed state */}
+              {!addressPanelOpen && (
+                <Tooltip title="Click to expand suggested addresses" placement="right">
+                  <Box 
+                    sx={{ 
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      height: '100%',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: 'linear-gradient(180deg, rgba(245,247,250,1) 0%, rgba(233,236,239,1) 100%)',
+                      borderRadius: 2,
+                      borderRight: '1px solid rgba(0,0,0,0.1)',
+                      boxShadow: 'inset -2px 0px 4px rgba(0,0,0,0.05)',
+                      cursor: 'pointer',
+                      '&:hover': {
+                        background: 'linear-gradient(180deg, rgba(236,239,242,1) 0%, rgba(227,230,235,1) 100%)',
+                        '& .MuiSvgIcon-root': {
+                          transform: 'scale(1.1)',
+                        },
+                        '& .expand-hint': {
+                          opacity: 1
+                        }
                       }
-                      secondary={
-                        <Box component="span" sx={{ display: 'block' }}>
-                          <Typography variant="body2" color="text.secondary" component="span">
-                            {chi?.BuildingName} {chi?.ChiStreet?.StreetName} {chi?.ChiDistrict?.DcDistrict}
-                          </Typography>
-                          {csvMatch && (
-                            <Chip label="COCR Registered" size="small" color="primary" sx={{ ml: 1, mt: 0.5, display: 'inline-flex' }} />
-                          )}
-                        </Box>
-                      }
-                    />
-                  </ListItem>
-                );
-              })}
-            </List>
-          </Box>
-        )}
-
-        {/* Map Container */}
-        <Paper sx={{ 
-          flexGrow: 1, 
-          position: 'relative', 
-          m: 2,
-          minHeight: '400px', // Adjust as needed, ensures map has some height
-          display: 'flex', // Added to make inner div take full height if needed
-          flexDirection: 'column' // Added for inner div
-        }}>
-          <div id="map-view" style={{ height: '100%', width: '100%', flexGrow: 1 }}></div> {/* Ensure this div takes full height of Paper */}
-          <div id="legend-container"></div>
-          {selectedBuilding && (
-            <Paper
-              sx={{
-                position: 'absolute',
-                bottom: 20,
-                left: 20,
-                right: 20,
-                p: 2,
-                backgroundColor: 'white',
-                boxShadow: 3
-              }}
-            >
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="h6">{selectedBuilding.name}</Typography>
-                <Tooltip title={isBookmarked(selectedBuilding.id) ? "Remove bookmark" : "Add to bookmarks"}>
-                  <IconButton 
-                    onClick={() => toggleBookmark(selectedBuilding)}
-                    color={isBookmarked(selectedBuilding.id) ? "primary" : "default"}
+                    }}
+                    onClick={() => setAddressPanelOpen(true)}
                   >
-                    {isBookmarked(selectedBuilding.id) ? <BookmarkIcon /> : <BookmarkBorderIcon />}
-                  </IconButton>
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: 2.5,
+                        position: 'relative',
+                        py: 3,
+                      }}
+                    >
+                      <LocationOnIcon 
+                        color="primary" 
+                        fontSize="medium"
+                        sx={{ 
+                          transition: 'transform 0.2s ease',
+                          filter: 'drop-shadow(0px 1px 2px rgba(0,0,0,0.2))'
+                        }} 
+                      />
+                      
+                      <Box sx={{ position: 'relative', height: 180, display: 'flex', alignItems: 'center' }}>
+                        <Typography 
+                          variant="caption" 
+                          sx={{ 
+                            transform: 'rotate(-90deg)', 
+                            transformOrigin: 'center',
+                            whiteSpace: 'nowrap',
+                            fontWeight: '600',
+                            letterSpacing: 1.2,
+                            color: 'primary.main',
+                            fontSize: '0.75rem',
+                            textTransform: 'uppercase',
+                            textShadow: '0px 1px 1px rgba(255,255,255,0.8)'
+                          }}
+                        >
+                          Suggested Addresses
+                        </Typography>
+                      </Box>
+                      
+                      <Chip 
+                        label={suggestedList.length} 
+                        size="small" 
+                        color="primary" 
+                        sx={{ 
+                          height: '24px', 
+                          minWidth: '24px',
+                          fontWeight: 'bold',
+                          boxShadow: '0px 1px 3px rgba(0,0,0,0.2)',
+                          '& .MuiChip-label': { 
+                            padding: '0 8px',
+                            fontSize: '0.75rem'
+                          }
+                        }} 
+                      />
+                      
+                      <Box 
+                        className="expand-hint"
+                        sx={{ 
+                          display: 'flex',
+                          alignItems: 'center',
+                          mt: 2,
+                          opacity: 0.7,
+                          transition: 'opacity 0.2s ease'
+                        }}
+                      >
+                        <ChevronRightIcon 
+                          fontSize="small" 
+                          color="action"
+                          sx={{ 
+                            animation: 'pulse 1.5s infinite',
+                            '@keyframes pulse': {
+                              '0%': { opacity: 0.5, transform: 'translateX(0)' },
+                              '50%': { opacity: 1, transform: 'translateX(2px)' },
+                              '100%': { opacity: 0.5, transform: 'translateX(0)' }
+                            }
+                          }} 
+                        />
+                      </Box>
+                    </Box>
+                  </Box>
                 </Tooltip>
-              </Box>
-              <Typography variant="body2" color="text.secondary">
-                {selectedBuilding.address}
-              </Typography>
-              <Box sx={{ mt: 1 }}>
-                <Chip 
-                  label={selectedBuilding.district} 
-                  size="small" 
-                  sx={{ mr: 1 }}
-                />
-                {selectedBuilding.hasCsvMatch && (
-                  <Chip 
-                    label="COCR Registered" 
-                    size="small" 
-                    color="primary"
-                  />
-                )}
-              </Box>
+              )}
+
+              {/* Toggle button for collapsing the panel */}
+              <IconButton 
+                onClick={(e) => {
+                  e.stopPropagation(); // Prevent event from bubbling up to parent
+                  setAddressPanelOpen(!addressPanelOpen);
+                }}
+                sx={{ 
+                  position: 'absolute', 
+                  right: addressPanelOpen ? 8 : '50%', 
+                  top: addressPanelOpen ? 8 : 8, 
+                  transform: addressPanelOpen ? 'none' : 'translateX(50%)',
+                  zIndex: 20,
+                  bgcolor: addressPanelOpen ? 'background.paper' : 'primary.main',
+                  color: addressPanelOpen ? 'inherit' : 'white',
+                  boxShadow: '0px 2px 4px rgba(0,0,0,0.15)',
+                  transition: 'background-color 0.2s ease, transform 0.3s ease, right 0.3s ease',
+                  '&:hover': { 
+                    bgcolor: addressPanelOpen ? 'background.default' : 'primary.dark' 
+                  }
+                }}
+                size="small"
+              >
+                {addressPanelOpen ? <ChevronLeftIcon /> : <ChevronRightIcon />}
+              </IconButton>
+
+              <Collapse in={addressPanelOpen} orientation="horizontal" sx={{ width: '100%' }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                  <Box 
+                    sx={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'center', 
+                      mb: 1, 
+                      pr: 4,
+                      cursor: 'pointer',
+                      py: 1,
+                      pl: 1,
+                      borderRadius: '4px',
+                      transition: 'background-color 0.2s ease',
+                      '&:hover': {
+                        bgcolor: 'rgba(0, 0, 0, 0.04)'
+                      }
+                    }}
+                    onClick={() => setAddressPanelOpen(false)}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mr: 1 }} component="div">
+                        Suggested Addresses
+                      </Typography>
+                      <Tooltip title="Collapse panel">
+                        <ChevronLeftIcon fontSize="small" color="action" sx={{ fontSize: '1rem', opacity: 0.7 }} />
+                      </Tooltip>
+                    </Box>
+                    <Chip 
+                      label={`${suggestedList.length} results`} 
+                      size="small" 
+                      color="primary" 
+                      variant="outlined"
+                    />
+                  </Box>
+                  <List sx={{ overflowY: 'auto', flex: 1 }}>
+                    {suggestedList.map((item, idx) => {
+                      const eng = item.Address?.PremisesAddress?.EngPremisesAddress;
+                      const chi = item.Address?.PremisesAddress?.ChiPremisesAddress;
+                      // CSV match logic
+                      const csvMatch = csvData.find(csvItem =>
+                        csvItem.EngName === eng?.BuildingName ||
+                        csvItem.ChiName === chi?.BuildingName
+                      );
+                      return (
+                        <ListItem 
+                          button 
+                          key={idx} 
+                          alignItems="flex-start" 
+                          onClick={() => handleBuildingSelect({
+                            id: eng?.BuildingName || '',
+                            name: eng?.BuildingName || '',
+                            nameZH: chi?.BuildingName || '',
+                            address: eng?.EngStreet?.StreetName || '',
+                            addressZH: chi?.ChiStreet?.StreetName || '',
+                            district: eng?.EngDistrict?.DcDistrict || '',
+                            districtZH: chi?.ChiDistrict?.DcDistrict || '',
+                            coordinates: [item.Address?.PremisesAddress?.GeospatialInformation?.Easting, item.Address?.PremisesAddress?.GeospatialInformation?.Northing],
+                            geoAddress: item.Address?.PremisesAddress?.GeoAddress || '',
+                            hasCsvMatch: !!csvMatch,
+                            csvData: csvMatch
+                          })}
+                          sx={{
+                            borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
+                            py: 1.5,
+                            '&:hover': {
+                              backgroundColor: 'rgba(0, 0, 0, 0.04)'
+                            }
+                          }}
+                        >
+                          <ListItemIcon>
+                            <LocationOnIcon color="primary" />
+                          </ListItemIcon>
+                          <ListItemText
+                            disableTypography
+                            primary={
+                              <Typography variant="body1" sx={{ fontWeight: 500 }} component="span">
+                                {eng?.BuildingName} {eng?.EngStreet?.StreetName}
+                              </Typography>
+                            }
+                            secondary={
+                              <Box component="span" sx={{ display: 'block' }}>
+                                <Typography variant="body2" color="text.secondary" component="span" sx={{ display: 'block', mt: 0.5 }}>
+                                  {chi?.BuildingName} {chi?.ChiStreet?.StreetName}
+                                </Typography>
+                                <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', mt: 0.5, gap: 0.5 }}>
+                                  <Chip 
+                                    label={eng?.EngDistrict?.DcDistrict} 
+                                    size="small" 
+                                    sx={{ height: '20px', fontSize: '0.7rem' }}
+                                  />
+                                  {csvMatch && (
+                                    <Chip 
+                                      label="COCR Registered" 
+                                      size="small" 
+                                      color="primary" 
+                                      sx={{ height: '20px', fontSize: '0.7rem', maxWidth: '100%', whiteSpace: 'nowrap' }} 
+                                    />
+                                  )}
+                                </Box>
+                              </Box>
+                            }
+                          />
+                        </ListItem>
+                      );
+                    })}
+                  </List>
+                </Box>
+              </Collapse>
             </Paper>
           )}
-        </Paper>
+
+          {/* Map Container - Right Column (or full width if no suggestions) */}
+          <Paper sx={{ 
+            flex: 1, 
+            position: 'relative',
+            borderRadius: 2,
+            boxShadow: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden'
+          }}>
+            <div id="map-view" style={{ height: '100%', width: '100%', flexGrow: 1 }}></div>
+            <div id="legend-container"></div>
+            {selectedBuilding && (
+              <Paper
+                sx={{
+                  position: 'absolute',
+                  bottom: 20,
+                  left: 20,
+                  right: 20,
+                  p: 2,
+                  backgroundColor: 'white',
+                  boxShadow: 3
+                }}
+              >
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Typography variant="h6">{selectedBuilding.name}</Typography>
+                  <Tooltip title={isBookmarked(selectedBuilding) ? "Remove bookmark" : "Add to bookmarks"}>
+                    <IconButton 
+                      onClick={() => toggleBookmark(selectedBuilding)}
+                      color={isBookmarked(selectedBuilding) ? "primary" : "default"}
+                    >
+                      {isBookmarked(selectedBuilding) ? <BookmarkIcon /> : <BookmarkBorderIcon />}
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+                <Typography variant="body2" color="text.secondary">
+                  {selectedBuilding.address}
+                </Typography>
+                <Box sx={{ mt: 1 }}>
+                  <Chip 
+                    label={selectedBuilding.district} 
+                    size="small" 
+                    sx={{ mr: 1 }}
+                  />
+                  {selectedBuilding.hasCsvMatch && (
+                    <Chip 
+                      label="COCR Registered" 
+                      size="small" 
+                      color="primary"
+                    />
+                  )}
+                </Box>
+              </Paper>
+            )}
+          </Paper>
+        </Box>
       </Box>
     </Box>
   );
