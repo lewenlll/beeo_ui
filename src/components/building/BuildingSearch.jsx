@@ -106,8 +106,7 @@ const buildingTypes = [
 
 // Map marker icons
 const mapIcon = "data:image/png;base64,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";
-
-const mapIcon2 = "data:image/png;base64,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";
+  const mapIcon2 = "data:image/png;base64,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";
 
 // Add a utility to tint a base64 PNG icon (for marker color)
 function colorizeIcon(base64, color) {
@@ -126,24 +125,79 @@ function buildAddressLabel(address) {
   if (!address) return '';
   const eng = address.PremisesAddress?.EngPremisesAddress || {};
   const chi = address.PremisesAddress?.ChiPremisesAddress || {};
-  // Compose English address
-  const engParts = [
-    eng.BuildingName,
-    eng.EngBlock,
-    eng.EngFloor,
-    eng.EngUnit,
-    eng.EngStreet?.StreetName,
-    eng.EngDistrict?.DcDistrict
-  ].filter(Boolean);
-  // Compose Chinese address
-  const chiParts = [
-    chi.BuildingName,
-    chi.ChiBlock,
-    chi.ChiFloor,
-    chi.ChiUnit,
-    chi.ChiStreet?.StreetName,
-    chi.ChiDistrict?.DcDistrict
-  ].filter(Boolean);
+  
+  // Compose English address with more details
+  const engParts = [];
+  
+  // Add building name if available
+  if (eng.BuildingName) engParts.push(eng.BuildingName);
+  
+  // Add estate name if available
+  if (eng.EngEstate?.EstateName) engParts.push(`${eng.EngEstate.EstateName} Estate`);
+  
+  // Add block information if available
+  if (eng.EngBlock) engParts.push(`Block ${eng.EngBlock}`);
+  
+  // Add floor and unit if available
+  if (eng.EngFloor) engParts.push(`Floor ${eng.EngFloor}`);
+  if (eng.EngUnit) engParts.push(`Unit ${eng.EngUnit}`);
+  
+  // Add street address with building number if available
+  if (eng.EngStreet) {
+    let streetText = '';
+    if (eng.EngStreet.BuildingNoFrom) {
+      streetText += `${eng.EngStreet.BuildingNoFrom}`;
+      if (eng.EngStreet.BuildingNoTo) streetText += `-${eng.EngStreet.BuildingNoTo}`;
+    }
+    if (eng.EngStreet.StreetName) {
+      if (streetText) streetText += ' ';
+      streetText += eng.EngStreet.StreetName;
+    }
+    if (streetText) engParts.push(streetText);
+  }
+  
+  // Add location/area name if available
+  if (eng.EngStreet?.LocationName) engParts.push(eng.EngStreet.LocationName);
+  
+  // Add district if available
+  if (eng.EngDistrict?.DcDistrict) engParts.push(eng.EngDistrict.DcDistrict);
+  
+  // Compose Chinese address with more details
+  const chiParts = [];
+  
+  // Add building name if available
+  if (chi.BuildingName) chiParts.push(chi.BuildingName);
+  
+  // Add estate name if available
+  if (chi.ChiEstate?.EstateName) chiParts.push(chi.ChiEstate.EstateName);
+  
+  // Add block information if available
+  if (chi.ChiBlock) chiParts.push(`${chi.ChiBlock}座`);
+  
+  // Add floor and unit if available
+  if (chi.ChiFloor) chiParts.push(`${chi.ChiFloor}樓`);
+  if (chi.ChiUnit) chiParts.push(`${chi.ChiUnit}室`);
+  
+  // Add street address with building number if available
+  if (chi.ChiStreet) {
+    let streetText = '';
+    if (chi.ChiStreet.BuildingNoFrom) {
+      streetText += `${chi.ChiStreet.BuildingNoFrom}`;
+      if (chi.ChiStreet.BuildingNoTo) streetText += `-${chi.ChiStreet.BuildingNoTo}`;
+    }
+    if (chi.ChiStreet.StreetName) {
+      if (streetText) streetText += '號 ';
+      streetText += chi.ChiStreet.StreetName;
+    }
+    if (streetText) chiParts.push(streetText);
+  }
+  
+  // Add location/area name if available
+  if (chi.ChiStreet?.LocationName) chiParts.push(chi.ChiStreet.LocationName);
+  
+  // Add district if available
+  if (chi.ChiDistrict?.DcDistrict) chiParts.push(chi.ChiDistrict.DcDistrict);
+  
   return `${engParts.join(' ')}${chiParts.length ? ' / ' + chiParts.join(' ') : ''}`;
 }
 
@@ -694,28 +748,41 @@ const BuildingSearch = () => {
         const label = buildAddressLabel(address.Address);
         const engDistrict = address.Address?.PremisesAddress?.EngPremisesAddress?.EngDistrict?.DcDistrict || '';
         const chiDistrict = address.Address?.PremisesAddress?.ChiPremisesAddress?.ChiDistrict?.DcDistrict || '';
+        // Get GeoAddress as primary identifier
+        const geoAddress = address.Address?.PremisesAddress?.GeoAddress || '';
+        
         // CSV match logic
         const csvMatch = csvData.find(csvItem =>
           csvItem.EngName === address.Address?.PremisesAddress?.EngPremisesAddress?.BuildingName ||
           csvItem.ChiName === address.Address?.PremisesAddress?.ChiPremisesAddress?.BuildingName
         );
+        
         return {
           label,
           engDistrict,
           chiDistrict,
           data: {
-            id: address.Address?.PremisesAddress?.EngPremisesAddress?.BuildingName || '',
+            id: geoAddress || address.Address?.PremisesAddress?.EngPremisesAddress?.BuildingName || '',
             name: address.Address?.PremisesAddress?.EngPremisesAddress?.BuildingName || '',
             nameZH: address.Address?.PremisesAddress?.ChiPremisesAddress?.BuildingName || '',
             address: address.Address?.PremisesAddress?.EngPremisesAddress?.EngStreet?.StreetName || '',
             addressZH: address.Address?.PremisesAddress?.ChiPremisesAddress?.ChiStreet?.StreetName || '',
             district: engDistrict,
             districtZH: chiDistrict,
+            // Include building numbers if available
+            buildingNoFrom: address.Address?.PremisesAddress?.EngPremisesAddress?.EngStreet?.BuildingNoFrom || '',
+            buildingNoTo: address.Address?.PremisesAddress?.EngPremisesAddress?.EngStreet?.BuildingNoTo || '',
+            // Include block and estate info
+            block: address.Address?.PremisesAddress?.EngPremisesAddress?.EngBlock || '',
+            estate: address.Address?.PremisesAddress?.EngPremisesAddress?.EngEstate?.EstateName || '',
             coordinates: [
               address.Address?.PremisesAddress?.GeospatialInformation?.Easting,
               address.Address?.PremisesAddress?.GeospatialInformation?.Northing
             ],
-            geoAddress: address.Address?.PremisesAddress?.GeoAddress || '',
+            // Include latitude and longitude information from GeospatialInformation
+            latitude: address.Address?.PremisesAddress?.GeospatialInformation?.Latitude || '',
+            longitude: address.Address?.PremisesAddress?.GeospatialInformation?.Longitude || '',
+            geoAddress: geoAddress,
             hasCsvMatch: !!csvMatch,
             csvData: csvMatch
           }
@@ -733,12 +800,12 @@ const BuildingSearch = () => {
         );
       }
 
-      // Remove duplicates by label
+      // Remove duplicates based on GeoAddress for more accurate deduplication
       let uniqueSuggestions = [];
       if (Array.isArray(filteredSuggestions)) {
-        const mapEntries = filteredSuggestions.map(s => [s.label, s]);
-        const mapObj = new window.Map(mapEntries);
-        uniqueSuggestions = [...mapObj.values()]; 
+        const geoAddressEntries = filteredSuggestions.map(s => [s.data.geoAddress || s.label, s]);
+        const uniqueMap = new window.Map(geoAddressEntries);
+        uniqueSuggestions = [...uniqueMap.values()]; 
       }
 
       safeSetSuggestions(uniqueSuggestions);
@@ -802,23 +869,28 @@ const BuildingSearch = () => {
     console.log('Created PictureMarkerSymbol for selection');
 
     // First, add or update the marker
+    // Use GeoAddress as primary identifier, fall back to id when GeoAddress is not available
+    const uniqueId = building.geoAddress || building.id;
     let graphic = mapViewRef.current.graphics.find(g => 
-      g.attributes && building.id && g.attributes.id === building.id // Check if building.id exists
+      g.attributes && (
+        (building.geoAddress && g.attributes.geoAddress === building.geoAddress) ||
+        (building.id && g.attributes.id === building.id)
+      )
     );
 
     if (graphic) {
-      console.log('Found existing graphic for ID:', building.id);
+      console.log('Found existing graphic for ID:', uniqueId);
       graphic.geometry = point; // Update geometry
       graphic.symbol = selectedSymbol;
       graphic.visible = true; // Ensure it's visible
       mapViewRef.current.graphics.reorder(graphic, mapViewRef.current.graphics.length - 1);
       console.log('Updated existing graphic');
     } else {
-      console.log('No existing graphic found for ID:', building.id, '. Creating new one.');
+      console.log('No existing graphic found for ID:', uniqueId, '. Creating new one.');
       graphic = new Graphic({
         geometry: point,
         symbol: selectedSymbol,
-        attributes: building, // Ensure building has an ID here
+        attributes: building, // Ensure building has an ID or GeoAddress
         visible: true,
         popupTemplate: {
           title: building.name,
@@ -830,7 +902,10 @@ const BuildingSearch = () => {
                 { fieldName: "address", label: "Address" },
                 { fieldName: "addressZH", label: "Address (ZH)" },
                 { fieldName: "district", label: "District" },
-                { fieldName: "districtZH", label: "District (ZH)" }
+                { fieldName: "districtZH", label: "District (ZH)" },
+                { fieldName: "geoAddress", label: "GeoAddress" },
+                { fieldName: "latitude", label: "Latitude" },
+                { fieldName: "longitude", label: "Longitude" }
               ]
             }
           ]
@@ -938,7 +1013,12 @@ const BuildingSearch = () => {
         yoffset: 12
       });
 
-      const existingGraphic = existingGraphics[building.id];
+      // Use GeoAddress as primary identifier with fallback to ID
+      const uniqueId = building.geoAddress || building.id;
+      const existingGraphic = existingGraphics[uniqueId] || 
+                              (building.geoAddress && existingGraphics[building.geoAddress]) || 
+                              (building.id && existingGraphics[building.id]);
+                              
       if (existingGraphic) {
         // Update existing graphic
         existingGraphic.geometry = point;
@@ -962,7 +1042,10 @@ const BuildingSearch = () => {
                   { fieldName: "address", label: "Address" },
                   { fieldName: "addressZH", label: "Address (ZH)" },
                   { fieldName: "district", label: "District" },
-                  { fieldName: "districtZH", label: "District (ZH)" }
+                  { fieldName: "districtZH", label: "District (ZH)" },
+                  { fieldName: "geoAddress", label: "GeoAddress" },
+                  { fieldName: "latitude", label: "Latitude" },
+                  { fieldName: "longitude", label: "Longitude" }
                 ]
               }
             ]
@@ -973,18 +1056,32 @@ const BuildingSearch = () => {
     });
 
     // Remove graphics that are no longer in the results
-    const currentIds = new Set(buildings.map(b => b.id));
+    // Use GeoAddress for identification when available
+    const currentIds = new Set();
+    buildings.forEach(b => {
+      if (b.geoAddress) currentIds.add(b.geoAddress);
+      if (b.id) currentIds.add(b.id);
+    });
+    
     mapViewRef.current.graphics.forEach(g => {
-      if (g.attributes && g.attributes.id && !currentIds.has(g.attributes.id)) {
-        mapViewRef.current.graphics.remove(g);
+      if (g.attributes) {
+        const graphicId = g.attributes.geoAddress || g.attributes.id;
+        if (graphicId && !currentIds.has(graphicId)) {
+          mapViewRef.current.graphics.remove(g);
+        }
       }
     });
 
     // Ensure selected building's marker is visible and on top
     if (selectedBuilding) {
+      // Find by GeoAddress first, then fall back to ID
       const selectedGraphic = mapViewRef.current.graphics.find(g => 
-        g.attributes && g.attributes.id === selectedBuilding.id
+        g.attributes && (
+          (selectedBuilding.geoAddress && g.attributes.geoAddress === selectedBuilding.geoAddress) ||
+          (selectedBuilding.id && g.attributes.id === selectedBuilding.id)
+        )
       );
+      
       if (selectedGraphic) {
         selectedGraphic.visible = true;
         mapViewRef.current.graphics.reorder(selectedGraphic, mapViewRef.current.graphics.length - 1);
@@ -1426,26 +1523,46 @@ const BuildingSearch = () => {
                     {suggestedList.map((item, idx) => {
                       const eng = item.Address?.PremisesAddress?.EngPremisesAddress;
                       const chi = item.Address?.PremisesAddress?.ChiPremisesAddress;
+                      // Get formatted address using buildAddressLabel
+                      const formattedAddress = buildAddressLabel(item.Address);
+                      // Split address into English and Chinese parts if it contains a separator
+                      const addressParts = formattedAddress.split(' / ');
+                      const engAddress = addressParts[0] || '';
+                      const chiAddress = addressParts[1] || '';
+                      
                       // CSV match logic
                       const csvMatch = csvData.find(csvItem =>
                         csvItem.EngName === eng?.BuildingName ||
                         csvItem.ChiName === chi?.BuildingName
                       );
+                      
+                      // Get GeoAddress for unique identifier
+                      const geoAddress = item.Address?.PremisesAddress?.GeoAddress || '';
+                      
                       return (
                         <ListItem 
                           button 
                           key={idx} 
                           alignItems="flex-start" 
                           onClick={() => handleBuildingSelect({
-                            id: eng?.BuildingName || '',
+                            id: geoAddress || eng?.BuildingName || '',
                             name: eng?.BuildingName || '',
                             nameZH: chi?.BuildingName || '',
                             address: eng?.EngStreet?.StreetName || '',
                             addressZH: chi?.ChiStreet?.StreetName || '',
                             district: eng?.EngDistrict?.DcDistrict || '',
                             districtZH: chi?.ChiDistrict?.DcDistrict || '',
+                            // Include building numbers if available
+                            buildingNoFrom: eng?.EngStreet?.BuildingNoFrom || '',
+                            buildingNoTo: eng?.EngStreet?.BuildingNoTo || '',
+                            // Include block and estate info
+                            block: eng?.EngBlock || '',
+                            estate: eng?.EngEstate?.EstateName || '',
                             coordinates: [item.Address?.PremisesAddress?.GeospatialInformation?.Easting, item.Address?.PremisesAddress?.GeospatialInformation?.Northing],
-                            geoAddress: item.Address?.PremisesAddress?.GeoAddress || '',
+                            // Include latitude and longitude information from GeospatialInformation
+                            latitude: item.Address?.PremisesAddress?.GeospatialInformation?.Latitude || '',
+                            longitude: item.Address?.PremisesAddress?.GeospatialInformation?.Longitude || '',
+                            geoAddress: geoAddress,
                             hasCsvMatch: !!csvMatch,
                             csvData: csvMatch
                           })}
@@ -1463,14 +1580,14 @@ const BuildingSearch = () => {
                           <ListItemText
                             disableTypography
                             primary={
-                              <Typography variant="body1" sx={{ fontWeight: 500 }} component="span">
-                                {eng?.BuildingName} {eng?.EngStreet?.StreetName}
+                              <Typography variant="body1" sx={{ fontWeight: 500, lineHeight: 1.3 }} component="span">
+                                {engAddress}
                               </Typography>
                             }
                             secondary={
                               <Box component="span" sx={{ display: 'block' }}>
-                                <Typography variant="body2" color="text.secondary" component="span" sx={{ display: 'block', mt: 0.5 }}>
-                                  {chi?.BuildingName} {chi?.ChiStreet?.StreetName}
+                                <Typography variant="body2" color="text.secondary" component="span" sx={{ display: 'block', mt: 0.5, lineHeight: 1.3 }}>
+                                  {chiAddress}
                                 </Typography>
                                 <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', mt: 0.5, gap: 0.5 }}>
                                   <Chip 
@@ -1534,9 +1651,26 @@ const BuildingSearch = () => {
                     </IconButton>
                   </Tooltip>
                 </Box>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                  {/* Display a more detailed address */}
+                  {selectedBuilding.buildingNoFrom && (
+                    <span>
+                      {selectedBuilding.buildingNoFrom}
+                      {selectedBuilding.buildingNoTo && `-${selectedBuilding.buildingNoTo}`}{' '}
+                    </span>
+                  )}
                   {selectedBuilding.address}
+                  {selectedBuilding.block && `, Block ${selectedBuilding.block}`}
+                  {selectedBuilding.estate && ` (${selectedBuilding.estate})`}
                 </Typography>
+                {/* Display latitude and longitude if available */}
+                {(selectedBuilding.latitude || selectedBuilding.longitude) && (
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                    Coordinates: {selectedBuilding.latitude && `${selectedBuilding.latitude}°N`}
+                    {selectedBuilding.latitude && selectedBuilding.longitude && ', '}
+                    {selectedBuilding.longitude && `${selectedBuilding.longitude}°E`}
+                  </Typography>
+                )}
                 <Box sx={{ mt: 1 }}>
                   <Chip 
                     label={selectedBuilding.district} 
@@ -1548,7 +1682,18 @@ const BuildingSearch = () => {
                       label="COCR Registered" 
                       size="small" 
                       color="primary"
+                      sx={{ mr: 1 }}
                     />
+                  )}
+                  {selectedBuilding.geoAddress && (
+                    <Tooltip title="GeoAddress Identifier">
+                      <Chip 
+                        label={`ID: ${selectedBuilding.geoAddress.substring(0, 10)}...`}
+                        size="small" 
+                        color="secondary"
+                        variant="outlined"
+                      />
+                    </Tooltip>
                   )}
                 </Box>
               </Paper>
