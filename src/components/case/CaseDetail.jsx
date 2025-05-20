@@ -164,7 +164,8 @@ const casesData = {
         "supportingDocuments": [
           {
             "documentType": "professionalQualificationProof",
-            "status": "attached"
+            "status": "attached",
+            "fileName": "PE_Certificate_2015.pdf"
           },
           {
             "documentType": "experienceVerificationLetter",
@@ -249,7 +250,8 @@ const casesData = {
             "type": "consentDocument",
             "status": "attached",
             "fileSize": "2MB",
-            "mimeType": "application/pdf"
+            "mimeType": "application/pdf",
+            "fileName": "Consent_Form_Signed.pdf"
           },
           {
             "type": "sitePlan",
@@ -259,6 +261,7 @@ const casesData = {
           {
             "type": "reaQualification",
             "status": "attached",
+            "fileName": "MHKIE_Certificate.pdf",
             "details": {
               "membership": "MHKIE",
               "expiryDate": "2025-12-31"
@@ -313,10 +316,10 @@ const CaseDetail = () => {
   // Task filtering state
   const [taskFilter, setTaskFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [stoFilter, setStoFilter] = useState('');
   const [dueDateFromFilter, setDueDateFromFilter] = useState('');
   const [dueDateToFilter, setDueDateToFilter] = useState('');
   const [advancedFilterOpen, setAdvancedFilterOpen] = useState(false);
+  const [searchTaskActionBy, setSearchTaskActionBy] = useState('');
   const [actionMenuAnchorEl, setActionMenuAnchorEl] = useState(null);
 
   const applicationData = caseData.applicationForm; // Use the applicationForm from caseData
@@ -348,10 +351,58 @@ const CaseDetail = () => {
     }));
   };
 
+  // Update the mock tasks to include multiple action by roles
   const mockTasks = [
-    { id: 1, name: 'Prepare / Issue Acknowledgement Letter Annex F1', status: 'Pending', sto: 'STO/EEB5/1', se: 'SE/EEB1/1', description: 'Initial review of submitted documents', dueDate: '2023-12-01' },
-    { id: 2, name: 'Review Submitted Documents', status: 'In Progress', sto: 'STO/EEB5/1', description: 'Conduct on-site inspection', dueDate: '2023-12-05' },
-    { id: 3, name: 'Checklist for General Checking of Application Submission', status: 'Pending', sto: 'STO/EEB5/1', description: 'Verify completeness of application form and supporting documents', dueDate: '2023-12-03', 
+    { 
+      id: 1, 
+      name: 'Prepare / Issue Acknowledgement Letter Annex F1', 
+      status: 'Pending', 
+      actionBy: {
+        sto: 'STO/EEB5/1 (Tom)',
+        engineer: 'E/EEB2/1 (Ken)',
+        seniorEngineer: null,
+        bsi: null,
+        to: null,
+        sbsi: null
+      },
+      description: 'Initial review of submitted documents', 
+      dueDate: '2023-12-01',
+      priority: 'High',
+      progress: 30
+    },
+    { 
+      id: 2, 
+      name: 'Review Submitted Documents', 
+      status: 'In Progress', 
+      actionBy: {
+        sto: null,
+        engineer: 'E/EEB3/2 (Amy)',
+        seniorEngineer: 'SE/EEB1/1 (David)',
+        bsi: 'BSI/EEB2/2 (Sarah)',
+        to: null,
+        sbsi: null
+      },
+      description: 'Conduct on-site inspection', 
+      dueDate: '2023-12-05',
+      priority: 'Medium',
+      progress: 50
+    },
+    { 
+      id: 3, 
+      name: 'Checklist for General Checking of Application Submission', 
+      status: 'Pending', 
+      actionBy: {
+        sto: null,
+        engineer: null,
+        seniorEngineer: null,
+        bsi: null,
+        to: 'TO/EEB4/1 (Ben)',
+        sbsi: 'SBSI/EEB3/1 (Ceci)'
+      },
+      description: 'Verify completeness of application form and supporting documents', 
+      dueDate: '2023-12-03',
+      priority: 'Medium',
+      progress: 10,
       checklistData: {
         applicationForm: [
           { id: 'sectionA', label: 'Section A', checked: false },
@@ -464,8 +515,16 @@ const CaseDetail = () => {
       // Filter by status
       const statusMatch = statusFilter === '' || task.status === statusFilter;
       
-      // Filter by STO
-      const stoMatch = stoFilter === '' || task.sto.toLowerCase().includes(stoFilter.toLowerCase());
+      // Filter by Action By (considering all possible roles)
+      const actionByMatch = searchTaskActionBy === '' || 
+        (task.actionBy && (
+          (task.actionBy.sto && task.actionBy.sto.toLowerCase().includes(searchTaskActionBy.toLowerCase())) ||
+          (task.actionBy.engineer && task.actionBy.engineer.toLowerCase().includes(searchTaskActionBy.toLowerCase())) ||
+          (task.actionBy.seniorEngineer && task.actionBy.seniorEngineer.toLowerCase().includes(searchTaskActionBy.toLowerCase())) ||
+          (task.actionBy.bsi && task.actionBy.bsi.toLowerCase().includes(searchTaskActionBy.toLowerCase())) ||
+          (task.actionBy.to && task.actionBy.to.toLowerCase().includes(searchTaskActionBy.toLowerCase())) ||
+          (task.actionBy.sbsi && task.actionBy.sbsi.toLowerCase().includes(searchTaskActionBy.toLowerCase()))
+        ));
       
       // Filter by due date range
       const dueDateMatch = (
@@ -473,14 +532,31 @@ const CaseDetail = () => {
         (dueDateToFilter === '' || new Date(task.dueDate) <= new Date(dueDateToFilter))
       );
       
-      return nameMatch && statusMatch && stoMatch && dueDateMatch;
+      return nameMatch && statusMatch && actionByMatch && dueDateMatch;
     });
-  }, [mockTasks, taskFilter, statusFilter, stoFilter, dueDateFromFilter, dueDateToFilter]);
+  }, [mockTasks, taskFilter, statusFilter, searchTaskActionBy, dueDateFromFilter, dueDateToFilter]);
 
   const renderAddress = (address) => {
     if (!address) return 'N/A';
     return `${address.flat || ''} ${address.floor || ''} ${address.block || ''} ${address.building || ''}, ${address.street || ''}, ${address.city || ''}`.replace(/\s+/g, ' ').trim();
   };
+
+  // Helper function to format action by information
+  const formatActionBy = (actionBy) => {
+    if (!actionBy) return 'N/A';
+    
+    const roles = [];
+    if (actionBy.sto) roles.push(actionBy.sto);
+    if (actionBy.engineer) roles.push(actionBy.engineer);
+    if (actionBy.seniorEngineer) roles.push(actionBy.seniorEngineer);
+    if (actionBy.bsi) roles.push(actionBy.bsi);
+    if (actionBy.to) roles.push(actionBy.to);
+    if (actionBy.sbsi) roles.push(actionBy.sbsi);
+    
+    return roles.length > 0 ? roles.join(', ') : 'Not Assigned';
+  };
+
+
 
   return (
     <Box sx={{ display: 'flex', height: '100vh' }}>
@@ -493,7 +569,7 @@ const CaseDetail = () => {
       {/* Main content */}
       <Box sx={{ 
         flex: 1, 
-        p: 3, 
+        p: 2, 
         overflow: 'hidden',
         transition: theme => theme.transitions.create(['margin'], {
           easing: theme.transitions.easing.sharp,
@@ -507,7 +583,7 @@ const CaseDetail = () => {
           { label: caseData.caseId, path: `/cases/${caseData.caseId}` }
         ]} />
 
-        <Box sx={{ display: 'flex', height: 'calc(100vh - 100px)', gap: 2 }}>
+        <Box sx={{ display: 'flex', height: 'calc(100vh - 80px)', gap: 1 }}>
           {/* Main Panel - full width */}
           <Box
             sx={{
@@ -517,11 +593,11 @@ const CaseDetail = () => {
               flexDirection: 'column',
             }}
           >
-            <Card sx={{ mb: 2, flexShrink: 0 }}>
-              <CardContent sx={{ pb: 1 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: detailsExpanded ? 2 : 0 }}>                  
+            <Card sx={{ mb: 1, flexShrink: 0, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+              <CardContent sx={{ pb: '8px !important', pt: 1.5, px: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: detailsExpanded ? 1 : 0 }}>                  
                   <Box sx={{ display: 'flex', alignItems: 'center' }}>                    
-                    <Typography variant="h6" sx={{ mr: 1 }}>Case Details</Typography>
+                    <Typography variant="subtitle1" sx={{ mr: 1, fontWeight: 'medium' }}>Case Details</Typography>
                     {!detailsExpanded && (
                       <Typography variant="body2" sx={{ mr: 1, color: 'text.secondary' }}>
                         EMSD/EEO/BC/19/01/06 | {caseData.caseType}
@@ -530,53 +606,54 @@ const CaseDetail = () => {
                     <IconButton 
                       size="small" 
                       onClick={() => setDetailsExpanded(!detailsExpanded)}
-                      sx={{ ml: 1 }}
+                      sx={{ ml: 0.5, p: 0.5 }}
                     >
                       {detailsExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
                     </IconButton>
                   </Box>
                   <Chip 
                     label={caseData.status} 
-                    color={caseData.status === 'Open' ? 'primary' : (caseData.status === 'In Progress' ? 'warning' : 'default')}
+                    color={caseData.status === 'Open' ? 'primary' : (caseData.status === 'In Progress' ? 'primary' : (caseData.status === 'Pending' ? 'warning' : (caseData.status === 'Rejected' ? 'error' : (caseData.status === 'Completed' || caseData.status === 'Closed' ? 'success' : 'default'))))}
                     size="small"
+                    sx={{ height: '22px', '& .MuiChip-label': { px: 1, py: 0.25, fontSize: '0.75rem' } }}
                   />
                 </Box>
                 <Collapse in={detailsExpanded} timeout="auto">
-                  <Grid container spacing={1} sx={{ mt: 0.5 }}> {/* Reduced spacing for denser info */}
-                    <Grid item xs={12} sm={6}>
-                      <Typography variant="subtitle2" color="text.secondary">Case No.</Typography>
-                      <Typography variant="body1">{caseData.caseId}</Typography>
+                  <Grid container spacing={0.75} sx={{ mt: 0 }}> {/* Reduced spacing for denser info */}
+                    <Grid item xs={12} sm={6} md={3} lg={2}>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold', fontSize: '0.7rem', mb: 0.5 }}>Case No.</Typography>
+                      <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{caseData.caseId}</Typography>
                     </Grid>
-                    <Grid item xs={12} sm={6}>
-                      <Typography variant="subtitle2" color="text.secondary">File No.</Typography>
-                      <Typography variant="body1">EMSD/EEO/BC/19/01/06</Typography>
+                    <Grid item xs={12} sm={6} md={3} lg={2}>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold', fontSize: '0.7rem', mb: 0.5 }}>File No.</Typography>
+                      <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>EMSD/EEO/BC/19/01/06</Typography>
                     </Grid>
-                    <Grid item xs={12} sm={6}>
-                      <Typography variant="subtitle2" color="text.secondary">Subject Engineer</Typography>
-                      <Typography variant="body1">{caseData.caseEngineer}</Typography>
+                    <Grid item xs={12} sm={6} md={3} lg={2}>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold', fontSize: '0.7rem', mb: 0.5 }}>Subject Engineer</Typography>
+                      <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{caseData.caseEngineer}</Typography>
                     </Grid>
-                    <Grid item xs={12} sm={6}>
-                      <Typography variant="subtitle2" color="text.secondary">Case Type</Typography>
-                      <Typography variant="body1">{caseData.caseType}</Typography>
+                    <Grid item xs={12} sm={6} md={3} lg={2}>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold', fontSize: '0.7rem', mb: 0.5 }}>Case Type</Typography>
+                      <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{caseData.caseType}</Typography>
                     </Grid>
-                    <Grid item xs={12} sm={6}>
-                      <Typography variant="subtitle2" color="text.secondary">Created Date</Typography>
-                      <Typography variant="body1">{caseData.createdDate}</Typography>
+                    <Grid item xs={12} sm={6} md={3} lg={2}>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold', fontSize: '0.7rem', mb: 0.5 }}>Created Date</Typography>
+                      <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{caseData.createdDate}</Typography>
                     </Grid>
-                    <Grid item xs={12} sm={6}>
-                      <Typography variant="subtitle2" color="text.secondary">WBRS No.</Typography>
-                      <Typography variant="body1">{caseData.wbrsNo}</Typography>
+                    <Grid item xs={12} sm={6} md={3} lg={2}>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold', fontSize: '0.7rem', mb: 0.5 }}>WBRS No.</Typography>
+                      <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{caseData.wbrsNo}</Typography>
                     </Grid>
                     <Grid item xs={12}>
-                      <Typography variant="subtitle2" color="text.secondary">Description</Typography>
-                      <Typography variant="body2" sx={{ maxHeight: 100, overflowY: 'auto' }}>{caseData.description}</Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold', fontSize: '0.7rem', mb: 0.5 }}>Description</Typography>
+                      <Typography variant="body2" sx={{ maxHeight: 60, overflowY: 'auto', bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{caseData.description}</Typography>
                     </Grid>
                   </Grid>
                 </Collapse>
               </CardContent>
             </Card>
 
-            <Paper sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: 'none', borderRadius: '0 0 8px 8px', height: detailsExpanded ? 'calc(100% - 200px)' : 'calc(100% - 70px)' }}> {/* Rounded bottom corners with dynamic height */}
+            <Paper sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: 'none', borderRadius: '0 0 8px 8px', height: detailsExpanded ? 'calc(100% - 140px)' : 'calc(100% - 50px)' }}> {/* Rounded bottom corners with dynamic height */}
               <Tabs 
                 value={tabValue} 
                 onChange={(e, v) => setTabValue(v)} 
@@ -595,7 +672,8 @@ const CaseDetail = () => {
                     textTransform: 'none',
                     fontWeight: 'medium',
                     minWidth: 100, // Ensure tabs have enough space
-                    padding: '12px 16px',
+                    padding: '8px 12px',
+                    minHeight: '40px',
                     '&.Mui-selected': {
                       color: 'primary.main',
                     }
@@ -610,7 +688,7 @@ const CaseDetail = () => {
                 <Tab label={`Related Cases (${relatedCases.length})`} />
                 <Tab label="History" />
               </Tabs>
-              <Box sx={{ flex: 1, p: 2.5, overflow: 'auto', bgcolor: 'white', height: '100%' }}> {/* Added height: 100% */}
+              <Box sx={{ flex: 1, p: 1.5, overflow: 'auto', bgcolor: 'white', height: '100%' }}> {/* Added height: 100% */}
                 {tabValue === 0 && applicationData && (
                   <Box>
                     <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
@@ -620,6 +698,7 @@ const CaseDetail = () => {
                         size="small"
                         startIcon={<EditIcon />}
                         onClick={() => setEditMode((prev) => !prev)}
+                        sx={{ height: '30px', fontSize: '0.8rem' }}
                       >
                         {editMode ? 'Save' : 'Edit'}
                       </Button>
@@ -627,343 +706,265 @@ const CaseDetail = () => {
                     {caseData.caseType === 'COCR S1' ? (
                       <>
                         {/* Building Information Card */}
-                        <Card sx={{ mb: 2 }}>
-                          <CardContent>
-                            <Typography variant="h6" gutterBottom>Building Information</Typography>
-                            <Grid container spacing={2}>
+                        <Card sx={{ mb: 1 }}>
+                          <CardContent sx={{ p: "8px 16px !important" }}>
+                            <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold', color: 'primary.main', borderBottom: '1px solid', borderColor: 'divider', pb: 0.5 }}>Building Information</Typography>
+                            <Grid container spacing={1}>
                               <Grid item xs={12} md={6}>
-                                <Typography variant="subtitle2" color="text.secondary">Building Name (English)</Typography>
-                                {editMode ? (
-                                  <TextField
-                                    fullWidth
-                                    value={editableData.buildingInfo?.name?.english || ''}
-                                    onChange={(e) => handleNestedFieldChange('buildingInfo', 'name', { ...editableData.buildingInfo?.name, english: e.target.value })}
-                                    size="small"
-                                  />
-                                ) : (
-                                  <Typography variant="body1">{applicationData.buildingInfo?.name?.english}</Typography>
-                                )}
+                                <Box sx={{ mb: 1 }}>
+                                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Building Name (English)</Typography>
+                                  {editMode ? (
+                                    <TextField
+                                      fullWidth
+                                      value={editableData.buildingInfo?.name?.english || ''}
+                                      onChange={(e) => handleNestedFieldChange('buildingInfo', 'name', { ...editableData.buildingInfo?.name, english: e.target.value })}
+                                      size="small"
+                                      margin="dense"
+                                      sx={{ mt: 0.5 }}
+                                    />
+                                  ) : (
+                                    <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{applicationData.buildingInfo?.name?.english}</Typography>
+                                  )}
+                                </Box>
                               </Grid>
                               <Grid item xs={12} md={6}>
-                                <Typography variant="subtitle2" color="text.secondary">Building Name (Chinese)</Typography>
-                                {editMode ? (
-                                  <TextField
-                                    fullWidth
-                                    value={editableData.buildingInfo?.name?.chinese || ''}
-                                    onChange={(e) => handleNestedFieldChange('buildingInfo', 'name', { ...editableData.buildingInfo?.name, chinese: e.target.value })}
-                                    size="small"
-                                  />
-                                ) : (
-                                  <Typography variant="body1">{applicationData.buildingInfo?.name?.chinese}</Typography>
-                                )}
+                                <Box sx={{ mb: 1 }}>
+                                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Building Name (Chinese)</Typography>
+                                  {editMode ? (
+                                    <TextField
+                                      fullWidth
+                                      value={editableData.buildingInfo?.name?.chinese || ''}
+                                      onChange={(e) => handleNestedFieldChange('buildingInfo', 'name', { ...editableData.buildingInfo?.name, chinese: e.target.value })}
+                                      size="small"
+                                      margin="dense"
+                                      sx={{ mt: 0.5 }}
+                                    />
+                                  ) : (
+                                    <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{applicationData.buildingInfo?.name?.chinese}</Typography>
+                                  )}
+                                </Box>
                               </Grid>
+                              
+                              {/* Add building address fields */}
                               <Grid item xs={12}>
-                                <Typography variant="subtitle2" color="text.secondary">Address</Typography>
-                                {editMode ? (
-                                  <Grid container spacing={1}>
-                                    <Grid item xs={12} sm={3}>
-                                      <TextField
-                                        fullWidth
-                                        label="Street No."
-                                        value={editableData.buildingInfo?.address?.streetNo || ''}
-                                        onChange={(e) => handleNestedFieldChange('buildingInfo', 'address', { ...editableData.buildingInfo?.address, streetNo: e.target.value })}
-                                        size="small"
-                                      />
-                                    </Grid>
-                                    <Grid item xs={12} sm={4.5}>
-                                      <TextField
-                                        fullWidth
-                                        label="Street (English)"
-                                        value={editableData.buildingInfo?.address?.streetEnglish || ''}
-                                        onChange={(e) => handleNestedFieldChange('buildingInfo', 'address', { ...editableData.buildingInfo?.address, streetEnglish: e.target.value })}
-                                        size="small"
-                                      />
-                                    </Grid>
-                                    <Grid item xs={12} sm={4.5}>
-                                      <TextField
-                                        fullWidth
-                                        label="Street (Chinese)"
-                                        value={editableData.buildingInfo?.address?.streetChinese || ''}
-                                        onChange={(e) => handleNestedFieldChange('buildingInfo', 'address', { ...editableData.buildingInfo?.address, streetChinese: e.target.value })}
-                                        size="small"
-                                      />
-                                    </Grid>
-                                    <Grid item xs={12} sm={6}>
-                                      <TextField
-                                        fullWidth
-                                        label="District (English)"
-                                        value={editableData.buildingInfo?.address?.districtEnglish || ''}
-                                        onChange={(e) => handleNestedFieldChange('buildingInfo', 'address', { ...editableData.buildingInfo?.address, districtEnglish: e.target.value })}
-                                        size="small"
-                                      />
-                                    </Grid>
-                                    <Grid item xs={12} sm={6}>
-                                      <TextField
-                                        fullWidth
-                                        label="District (Chinese)"
-                                        value={editableData.buildingInfo?.address?.districtChinese || ''}
-                                        onChange={(e) => handleNestedFieldChange('buildingInfo', 'address', { ...editableData.buildingInfo?.address, districtChinese: e.target.value })}
-                                        size="small"
-                                      />
-                                    </Grid>
-                                  </Grid>
-                                ) : (
-                                  <Typography variant="body1">
-                                    {applicationData.buildingInfo?.address?.streetNo} {applicationData.buildingInfo?.address?.streetEnglish} / {applicationData.buildingInfo?.address?.streetChinese},
-                                    {applicationData.buildingInfo?.address?.districtEnglish} / {applicationData.buildingInfo?.address?.districtChinese}
-                                  </Typography>
-                                )}
+                                <Box sx={{ mb: 1 }}>
+                                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Building Address</Typography>
+                                  {editMode ? (
+                                    <TextField
+                                      fullWidth
+                                      multiline
+                                      rows={2}
+                                      value={`${applicationData.buildingInfo?.address?.streetNo || ''} ${applicationData.buildingInfo?.address?.streetEnglish || ''}, ${applicationData.buildingInfo?.address?.districtEnglish || ''}`}
+                                      size="small"
+                                      margin="dense"
+                                      sx={{ mt: 0.5 }}
+                                    />
+                                  ) : (
+                                    <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>
+                                      {`${applicationData.buildingInfo?.address?.streetNo || ''} ${applicationData.buildingInfo?.address?.streetEnglish || ''}, ${applicationData.buildingInfo?.address?.districtEnglish || ''}`}
+                                    </Typography>
+                                  )}
+                                </Box>
                               </Grid>
+                              
                               <Grid item xs={12} md={6}>
-                                <Typography variant="subtitle2" color="text.secondary">Building Category</Typography>
-                                {editMode ? (
-                                  <FormControl fullWidth size="small">
-                                    <Select
-                                      value={editableData.buildingInfo?.buildingCategory?.[0] || ''}
-                                      onChange={(e) => handleNestedFieldChange('buildingInfo', 'buildingCategory', [e.target.value])}
-                                    >
-                                      <MenuItem value="composite(commercial&residential)">Composite (Commercial & Residential)</MenuItem>
-                                      <MenuItem value="dataCentre">Data Centre</MenuItem>
-                                    </Select>
-                                  </FormControl>
-                                ) : (
-                                  <Typography variant="body1">{applicationData.buildingInfo?.buildingCategory?.join(', ')}</Typography>
-                                )}
+                                <Box sx={{ mb: 1 }}>
+                                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Building Category</Typography>
+                                  {editMode ? (
+                                    <TextField
+                                      fullWidth
+                                      value={editableData.buildingInfo?.buildingCategory?.join(", ") || ''}
+                                      size="small"
+                                      margin="dense"
+                                      sx={{ mt: 0.5 }}
+                                    />
+                                  ) : (
+                                    <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{applicationData.buildingInfo?.buildingCategory?.join(", ")}</Typography>
+                                  )}
+                                </Box>
                               </Grid>
+                              
                               <Grid item xs={12} md={6}>
-                                <Typography variant="subtitle2" color="text.secondary">Lot No.</Typography>
-                                {editMode ? (
-                                  <TextField
-                                    fullWidth
-                                    value={editableData.buildingInfo?.lotNo || ''}
-                                    onChange={(e) => handleNestedFieldChange('buildingInfo', 'lotNo', e.target.value)}
-                                    size="small"
-                                  />
-                                ) : (
-                                  <Typography variant="body1">{applicationData.buildingInfo?.lotNo}</Typography>
-                                )}
+                                <Box sx={{ mb: 1 }}>
+                                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Lot Number</Typography>
+                                  {editMode ? (
+                                    <TextField
+                                      fullWidth
+                                      value={editableData.buildingInfo?.lotNo || ''}
+                                      size="small"
+                                      margin="dense"
+                                      sx={{ mt: 0.5 }}
+                                    />
+                                  ) : (
+                                    <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{applicationData.buildingInfo?.lotNo}</Typography>
+                                  )}
+                                </Box>
                               </Grid>
+                              
                               <Grid item xs={12} md={6}>
-                                <Typography variant="subtitle2" color="text.secondary">Total Gross Floor Area (m²)</Typography>
-                                {editMode ? (
-                                  <TextField
-                                    fullWidth
-                                    type="number"
-                                    value={editableData.buildingInfo?.grossFloorArea?.total || ''}
-                                    onChange={(e) => handleNestedFieldChange('buildingInfo', 'grossFloorArea', { ...editableData.buildingInfo?.grossFloorArea, total: parseFloat(e.target.value) })}
-                                    size="small"
-                                  />
-                                ) : (
-                                  <Typography variant="body1">{applicationData.buildingInfo?.grossFloorArea?.total}</Typography>
-                                )}
+                                <Box sx={{ mb: 1 }}>
+                                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Total Gross Floor Area (m²)</Typography>
+                                  {editMode ? (
+                                    <TextField
+                                      fullWidth
+                                      type="number"
+                                      value={editableData.buildingInfo?.grossFloorArea?.total || ''}
+                                      size="small"
+                                      margin="dense"
+                                      sx={{ mt: 0.5 }}
+                                    />
+                                  ) : (
+                                    <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{applicationData.buildingInfo?.grossFloorArea?.total}</Typography>
+                                  )}
+                                </Box>
                               </Grid>
+                              
                               <Grid item xs={12} md={6}>
-                                <Typography variant="subtitle2" color="text.secondary">Commercial Portion (m²)</Typography>
-                                {editMode ? (
-                                  <TextField
-                                    fullWidth
-                                    type="number"
-                                    value={editableData.buildingInfo?.grossFloorArea?.commercialPortion || ''}
-                                    onChange={(e) => handleNestedFieldChange('buildingInfo', 'grossFloorArea', { ...editableData.buildingInfo?.grossFloorArea, commercialPortion: parseFloat(e.target.value) })}
-                                    size="small"
-                                  />
-                                ) : (
-                                  <Typography variant="body1">{applicationData.buildingInfo?.grossFloorArea?.commercialPortion}</Typography>
-                                )}
+                                <Box sx={{ mb: 1 }}>
+                                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Commercial Portion (m²)</Typography>
+                                  {editMode ? (
+                                    <TextField
+                                      fullWidth
+                                      type="number"
+                                      value={editableData.buildingInfo?.grossFloorArea?.commercialPortion || ''}
+                                      size="small"
+                                      margin="dense"
+                                      sx={{ mt: 0.5 }}
+                                    />
+                                  ) : (
+                                    <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{applicationData.buildingInfo?.grossFloorArea?.commercialPortion}</Typography>
+                                  )}
+                                </Box>
                               </Grid>
                             </Grid>
                           </CardContent>
                         </Card>
-                      </>
-                    ) : (
-                      /* Applicant Information Card */
-                      <Card sx={{ mb: 2 }}>
-                      <CardContent>
-                        <Typography variant="h6" gutterBottom>Applicant Information</Typography>
-                        <Grid container spacing={2}>
-                          {/* Application Type */}
-                          <Grid item xs={12} md={6}>
-                            <Typography variant="subtitle2" color="text.secondary">Application Type</Typography>
-                            {editMode ? (
-                              <TextField
-                                fullWidth
-                                value={editableData.applicationType || ''}
-                                onChange={(e) => handleFieldChange('applicationType', e.target.value)}
-                                size="small"
-                              />
-                            ) : (
-                              <Typography variant="body1">{applicationData.applicationType}</Typography>
-                            )}
-                          </Grid>
-                          {/* Company Name */}
-                          <Grid item xs={12} md={6}>
-                            <Typography variant="subtitle2" color="text.secondary">Company Name</Typography>
-                            {editMode ? (
-                              <TextField
-                                fullWidth
-                                value={editableData.applicantInfo?.currentCompany?.name || ''}
-                                onChange={(e) => handleNestedFieldChange('applicantInfo', 'currentCompany', { ...editableData.applicantInfo?.currentCompany, name: e.target.value })}
-                                size="small"
-                              />
-                            ) : (
-                              <Typography variant="body1">{applicationData.applicantInfo?.currentCompany?.name}</Typography>
-                            )}
-                          </Grid>
-                          {/* Address */}
-                          <Grid item xs={12}>
-                            <Typography variant="subtitle2" color="text.secondary">Address</Typography>
-                            {editMode ? (
-                              <Grid container spacing={1}>
-                                <Grid item xs={12} sm={3}><TextField fullWidth label="Flat" value={editableData.applicantInfo?.currentCompany?.address?.flat || ''} onChange={(e) => handleAddressChange('applicantInfo', 'currentCompany', { ...editableData.applicantInfo?.currentCompany?.address, flat: e.target.value })} size="small" /></Grid>
-                                <Grid item xs={12} sm={3}><TextField fullWidth label="Floor" value={editableData.applicantInfo?.currentCompany?.address?.floor || ''} onChange={(e) => handleAddressChange('applicantInfo', 'currentCompany', { ...editableData.applicantInfo?.currentCompany?.address, floor: e.target.value })} size="small" /></Grid>
-                                <Grid item xs={12} sm={3}><TextField fullWidth label="Block" value={editableData.applicantInfo?.currentCompany?.address?.block || ''} onChange={(e) => handleAddressChange('applicantInfo', 'currentCompany', { ...editableData.applicantInfo?.currentCompany?.address, block: e.target.value })} size="small" /></Grid>
-                                <Grid item xs={12} sm={3}><TextField fullWidth label="Building" value={editableData.applicantInfo?.currentCompany?.address?.building || ''} onChange={(e) => handleAddressChange('applicantInfo', 'currentCompany', { ...editableData.applicantInfo?.currentCompany?.address, building: e.target.value })} size="small" /></Grid>
-                                <Grid item xs={12} sm={6}><TextField fullWidth label="Street" value={editableData.applicantInfo?.currentCompany?.address?.street || ''} onChange={(e) => handleAddressChange('applicantInfo', 'currentCompany', { ...editableData.applicantInfo?.currentCompany?.address, street: e.target.value })} size="small" /></Grid>
-                                <Grid item xs={12} sm={6}><TextField fullWidth label="City" value={editableData.applicantInfo?.currentCompany?.address?.city || ''} onChange={(e) => handleAddressChange('applicantInfo', 'currentCompany', { ...editableData.applicantInfo?.currentCompany?.address, city: e.target.value })} size="small" /></Grid>
+                        
+                        {/* Declaration Information Card */}
+                        <Card sx={{ mb: 1 }}>
+                          <CardContent sx={{ p: "8px 16px !important" }}>
+                            <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold', color: 'primary.main', borderBottom: '1px solid', borderColor: 'divider', pb: 0.5 }}>Declaration Information</Typography>
+                            <Grid container spacing={1}>
+                              <Grid item xs={12} md={6}>
+                                <Box sx={{ mb: 1 }}>
+                                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Submission Purpose</Typography>
+                                  {editMode ? (
+                                    <TextField
+                                      fullWidth
+                                      value={editableData.declarationInfo?.submissionPurpose || ''}
+                                      size="small"
+                                      margin="dense"
+                                      sx={{ mt: 0.5 }}
+                                    />
+                                  ) : (
+                                    <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{applicationData.declarationInfo?.submissionPurpose}</Typography>
+                                  )}
+                                </Box>
                               </Grid>
-                            ) : (
-                              <Typography variant="body1">{renderAddress(applicationData.applicantInfo?.currentCompany?.address)}</Typography>
-                            )}
-                          </Grid>
-                          {/* Position */}
-                          <Grid item xs={12} md={6}>
-                            <Typography variant="subtitle2" color="text.secondary">Position</Typography>
-                            {editMode ? (
-                              <TextField
-                                fullWidth
-                                value={editableData.applicantInfo?.position || ''}
-                                onChange={(e) => handleNestedFieldChange('applicantInfo', 'position', e.target.value)}
-                                size="small"
-                              />
-                            ) : (
-                              <Typography variant="body1">{applicationData.applicantInfo?.position}</Typography>
-                            )}
-                          </Grid>
-                          {/* Office Phone */}
-                          <Grid item xs={12} md={6}>
-                            <Typography variant="subtitle2" color="text.secondary">Office Phone</Typography>
-                            {editMode ? (
-                              <TextField
-                                fullWidth
-                                value={editableData.applicantInfo?.contact?.officePhone || ''}
-                                onChange={(e) => handleNestedFieldChange('applicantInfo', 'contact', { ...editableData.applicantInfo?.contact, officePhone: e.target.value })}
-                                size="small"
-                              />
-                            ) : (
-                              <Typography variant="body1">{applicationData.applicantInfo?.contact?.officePhone}</Typography>
-                            )}
-                          </Grid>
-                          {/* Fax */}
-                          <Grid item xs={12} md={6}>
-                            <Typography variant="subtitle2" color="text.secondary">Fax</Typography>
-                            {editMode ? (
-                              <TextField
-                                fullWidth
-                                value={editableData.applicantInfo?.contact?.fax || ''}
-                                onChange={(e) => handleNestedFieldChange('applicantInfo', 'contact', { ...editableData.applicantInfo?.contact, fax: e.target.value })}
-                                size="small"
-                              />
-                            ) : (
-                              <Typography variant="body1">{applicationData.applicantInfo?.contact?.fax}</Typography>
-                            )}
-                          </Grid>
-                          {/* Declaration */}
-                          <Grid item xs={12}>
-                            <Typography variant="subtitle2" color="text.secondary">Declaration</Typography>
-                            {editMode ? (
-                              <FormGroup sx={{ mt: 1 }}>
-                                <FormControlLabel
-                                  control={
-                                    <Checkbox
-                                      checked={editableData.applicantInfo?.declaration?.knowledge || false}
-                                      onChange={(e) => handleNestedFieldChange('applicantInfo', 'declaration', { ...editableData.applicantInfo?.declaration, knowledge: e.target.checked })}
+                              
+                              <Grid item xs={12} md={6}>
+                                <Box sx={{ mb: 1 }}>
+                                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Previous Reference</Typography>
+                                  {editMode ? (
+                                    <TextField
+                                      fullWidth
+                                      value={editableData.declarationInfo?.previousReference || ''}
                                       size="small"
+                                      margin="dense"
+                                      sx={{ mt: 0.5 }}
                                     />
-                                  }
-                                  label="Knowledge"
-                                />
-                                <FormControl fullWidth size="small" sx={{ my: 1 }}>
-                                  <InputLabel id="criminal-record-label">Criminal Record</InputLabel>
-                                  <Select
-                                    labelId="criminal-record-label"
-                                    value={editableData.applicantInfo?.declaration?.criminalRecord || ''}
-                                    label="Criminal Record"
-                                    onChange={(e) => handleNestedFieldChange('applicantInfo', 'declaration', { ...editableData.applicantInfo?.declaration, criminalRecord: e.target.value })}
-                                  >
-                                    <MenuItem value="have">Have</MenuItem>
-                                    <MenuItem value="haveNot">Have Not</MenuItem>
-                                  </Select>
-                                </FormControl>
-                                <FormControlLabel
-                                  control={
-                                    <Checkbox
-                                      checked={editableData.applicantInfo?.declaration?.dataAccuracy || false}
-                                      onChange={(e) => handleNestedFieldChange('applicantInfo', 'declaration', { ...editableData.applicantInfo?.declaration, dataAccuracy: e.target.checked })}
+                                  ) : (
+                                    <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{applicationData.declarationInfo?.previousReference}</Typography>
+                                  )}
+                                </Box>
+                              </Grid>
+                              
+                              <Grid item xs={12} md={4}>
+                                <Box sx={{ mb: 1 }}>
+                                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Consent Date</Typography>
+                                  {editMode ? (
+                                    <TextField
+                                      fullWidth
+                                      type="date"
+                                      value={editableData.declarationInfo?.consentDate || ''}
                                       size="small"
+                                      margin="dense"
+                                      sx={{ mt: 0.5 }}
                                     />
-                                  }
-                                  label="Data Accuracy"
-                                />
-                              </FormGroup>
-                            ) : (
-                              <Typography variant="body1">
-                                Knowledge: {applicationData.applicantInfo?.declaration?.knowledge ? 'Yes' : 'No'}<br />
-                                Criminal Record: {applicationData.applicantInfo?.declaration?.criminalRecord}<br />
-                                Data Accuracy: {applicationData.applicantInfo?.declaration?.dataAccuracy ? 'Yes' : 'No'}
-                              </Typography>
-                            )}
-                          </Grid>
-                          {/* Signature Date */}
-                          <Grid item xs={12} md={6}>
-                            <Typography variant="subtitle2" color="text.secondary">Signature Date</Typography>
-                            {editMode ? (
-                              <TextField
-                                fullWidth
-                                type="date"
-                                value={editableData.applicantInfo?.signature?.date || ''}
-                                onChange={(e) => handleNestedFieldChange('applicantInfo', 'signature', { ...editableData.applicantInfo?.signature, date: e.target.value })}
-                                size="small"
-                                InputLabelProps={{ shrink: true }}
-                              />
-                            ) : (
-                              <Typography variant="body1">{applicationData.applicantInfo?.signature?.date}</Typography>
-                            )}
-                          </Grid>
-                        </Grid>
-                      </CardContent>
-                    </Card>
-
-                    )}
-
-                    {caseData.caseType === 'COCR S1' ? (
-                      <>
-                        {/* Supporting Documents Card */}
-                        <Card sx={{ mb: 2 }}>
-                          <CardContent>
-                            <Typography variant="h6" gutterBottom>Supporting Documents</Typography>
-                            <Grid container spacing={2}>
-                              {applicationData.supportingDocuments?.map((doc, index) => (
-                                <Grid item xs={12} key={index}>
-                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                    <Typography variant="subtitle2" color="text.secondary">{doc.type}</Typography>
+                                  ) : (
+                                    <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{applicationData.declarationInfo?.consentDate}</Typography>
+                                  )}
+                                </Box>
+                              </Grid>
+                              
+                              <Grid item xs={12} md={4}>
+                                <Box sx={{ mb: 1 }}>
+                                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Construction Start Date</Typography>
+                                  {editMode ? (
+                                    <TextField
+                                      fullWidth
+                                      type="date"
+                                      value={editableData.declarationInfo?.constructionStartDate || ''}
+                                      size="small"
+                                      margin="dense"
+                                      sx={{ mt: 0.5 }}
+                                    />
+                                  ) : (
+                                    <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{applicationData.declarationInfo?.constructionStartDate}</Typography>
+                                  )}
+                                </Box>
+                              </Grid>
+                              
+                              <Grid item xs={12} md={4}>
+                                <Box sx={{ mb: 1 }}>
+                                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Occupancy Approval Date</Typography>
+                                  {editMode ? (
+                                    <TextField
+                                      fullWidth
+                                      type="date"
+                                      value={editableData.declarationInfo?.occupancyApprovalDate || ''}
+                                      size="small"
+                                      margin="dense"
+                                      sx={{ mt: 0.5 }}
+                                    />
+                                  ) : (
+                                    <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{applicationData.declarationInfo?.occupancyApprovalDate}</Typography>
+                                  )}
+                                </Box>
+                              </Grid>
+                            </Grid>
+                          </CardContent>
+                        </Card>
+                        
+                        {/* Supporting Files Card */}
+                        <Card sx={{ mb: 1 }}>
+                          <CardContent sx={{ p: "8px 16px !important" }}>
+                            <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold', color: 'primary.main', borderBottom: '1px solid', borderColor: 'divider', pb: 0.5 }}>Supporting Files</Typography>
+                            <Grid container spacing={1}>
+                              {applicationData.supportingFiles?.map((doc, index) => (
+                                <Grid item xs={12} sm={6} md={4} key={index}>
+                                  <Box sx={{ mb: 1 }}>
+                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>{doc.type}</Typography>
                                     {editMode ? (
-                                      <FormControl fullWidth size="small">
-                                        <Select
-                                          value={editableData.supportingDocuments?.[index]?.status || ''}
-                                          onChange={(e) => handleNestedFieldChange('supportingDocuments', index, { ...editableData.supportingDocuments?.[index], status: e.target.value })}
-                                        >
-                                          <MenuItem value="pending">Pending</MenuItem>
-                                          <MenuItem value="submitted">Submitted</MenuItem>
-                                          <MenuItem value="approved">Approved</MenuItem>
-                                          <MenuItem value="rejected">Rejected</MenuItem>
-                                        </Select>
-                                      </FormControl>
+                                      <TextField fullWidth value={editableData.supportingFiles?.[index]?.status || ''} onChange={(e) => handleNestedFieldChange('supportingFiles', index, { ...editableData.supportingFiles?.[index], status: e.target.value })} size="small" margin="dense" select>
+                                        <MenuItem value="attached">Attached</MenuItem>
+                                        <MenuItem value="pending">Pending</MenuItem>
+                                        <MenuItem value="not required">Not Required</MenuItem>
+                                      </TextField>
                                     ) : (
-                                      <Chip
-                                        label={doc.status}
-                                        color={doc.status === 'approved' ? 'success' : doc.status === 'rejected' ? 'error' : 'default'}
-                                        size="small"
-                                      />
+                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        <Chip 
+                                          label={doc.status} 
+                                          size="small" 
+                                          color={doc.status === 'attached' ? 'success' : (doc.status === 'pending' ? 'primary' : 'warning')}
+                                          sx={{ height: '22px', '& .MuiChip-label': { px: 1, py: 0.25, fontSize: '0.75rem' } }}
+                                        />
+                                        {doc.status === 'attached' && doc.fileName && (
+                                          <Typography variant="body2" component="a" href="#" sx={{ textDecoration: 'underline', color: 'primary.main', cursor: 'pointer' }}>
+                                            {doc.fileName}
+                                          </Typography>
+                                        )}
+                                      </Box>
                                     )}
                                   </Box>
                                 </Grid>
@@ -971,264 +972,263 @@ const CaseDetail = () => {
                             </Grid>
                           </CardContent>
                         </Card>
-
-                        {/* Compliance Declaration Card */}
-                        <Card sx={{ mb: 2 }}>
-                          <CardContent>
-                            <Typography variant="h6" gutterBottom>Compliance Declaration</Typography>
-                            <Grid container spacing={2}>
-                              <Grid item xs={12}>
-                                <FormGroup>
-                                  {editMode ? (
-                                    <FormControlLabel
-                                      control={
-                                        <Checkbox
-                                          checked={editableData.complianceDeclaration?.regulatoryCompliance || false}
-                                          onChange={(e) => handleNestedFieldChange('complianceDeclaration', 'regulatoryCompliance', e.target.checked)}
-                                          size="small"
-                                        />
-                                      }
-                                      label="I declare that all information provided is true and accurate"
-                                    />
-                                  ) : (
-                                    <Typography variant="body1">
-                                      Regulatory Compliance: {applicationData.complianceDeclaration?.regulatoryCompliance ? 'Yes' : 'No'}
-                                    </Typography>
-                                  )}
-                                </FormGroup>
-                              </Grid>
-                            </Grid>
-                          </CardContent>
-                        </Card>
-
-                        {/* Regulatory Notes Card */}
-                        <Card sx={{ mb: 2 }}>
-                          <CardContent>
-                            <Typography variant="h6" gutterBottom>Regulatory Notes</Typography>
-                            {editMode ? (
-                              <TextField
-                                fullWidth
-                                multiline
-                                rows={4}
-                                label="Regulatory Notes"
-                                value={editableData.regulatoryNotes ? JSON.stringify(editableData.regulatoryNotes, null, 2) : ''}
-                                onChange={(e) => handleFieldChange('regulatoryNotes', e.target.value)}
-                                variant="outlined"
-                                margin="normal"
-                              />
-                            ) : (
-                              <Box sx={{ mt: 2 }}>
-                                <Typography variant="subtitle2" color="text.secondary">Anti-Corruption Declaration:</Typography>
-                                <Typography variant="body1">{applicationData.regulatoryNotes?.antiCorruption ? 'Yes' : 'No'}</Typography>
-                                
-                                <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 1 }}>Privacy Consent:</Typography>
-                                <Typography variant="body1">{applicationData.regulatoryNotes?.privacyConsent ? 'Yes' : 'No'}</Typography>
-                                
-                                <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 1 }}>Data Usage:</Typography>
-                                <Typography variant="body1">
-                                  {applicationData.regulatoryNotes?.dataUsage ? 
-                                    (Array.isArray(applicationData.regulatoryNotes.dataUsage) ? 
-                                      applicationData.regulatoryNotes.dataUsage.join(', ') : 
-                                      String(applicationData.regulatoryNotes.dataUsage)
-                                    ) : 'None'}
-                                </Typography>
-                              </Box>
-                            )}
-                          </CardContent>
-                        </Card>
                       </>
                     ) : (
-                      /* Qualifications Card */
-                      <Card sx={{ mb: 2 }}>
-                      <CardContent>
-                        <Typography variant="h6" gutterBottom>Qualifications</Typography>
-                        {applicationData.qualifications?.map((qual, index) => (
-                          <Box key={index} sx={{ mb: 2, p: 1, border: '1px solid #eee', borderRadius: 1 }}>
-                            <Grid container spacing={2}>
-                              <Grid item xs={12} md={6}>
-                                <Typography variant="subtitle2" color="text.secondary">Type</Typography>
+                      /* Applicant Information Card */
+                      <Card sx={{ mb: 1 }}>
+                        <CardContent sx={{ p: "8px 16px !important" }}>
+                          <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold', color: 'primary.main', borderBottom: '1px solid', borderColor: 'divider', pb: 0.5 }}>Applicant Information</Typography>
+                          <Grid container spacing={1}>
+                            {/* Application Type */}
+                            <Grid item xs={12} sm={6} md={4} lg={3}>
+                              <Box sx={{ mb: 1 }}>
+                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Application Type</Typography>
                                 {editMode ? (
-                                  <TextField fullWidth value={editableData.qualifications?.[index]?.type || ''} onChange={(e) => handleNestedFieldChange('qualifications', index, { ...editableData.qualifications?.[index], type: e.target.value })} size="small" />
+                                  <TextField
+                                    fullWidth
+                                    value={editableData.applicationType || ''}
+                                    onChange={(e) => handleFieldChange('applicationType', e.target.value)}
+                                    size="small"
+                                    margin="dense"
+                                    sx={{ mt: 0.5 }}
+                                  />
                                 ) : (
-                                  <Typography variant="body1">{qual.type}</Typography>
+                                  <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{applicationData.applicationType}</Typography>
                                 )}
-                              </Grid>
-                              <Grid item xs={12} md={6}>
-                                <Typography variant="subtitle2" color="text.secondary">Registration Number</Typography>
-                                {editMode ? (
-                                  <TextField fullWidth value={editableData.qualifications?.[index]?.registrationNumber || ''} onChange={(e) => handleNestedFieldChange('qualifications', index, { ...editableData.qualifications?.[index], registrationNumber: e.target.value })} size="small" />
-                                ) : (
-                                  <Typography variant="body1">{qual.registrationNumber}</Typography>
-                                )}
-                              </Grid>
-                              <Grid item xs={12} md={6}>
-                                <Typography variant="subtitle2" color="text.secondary">Discipline</Typography>
-                                {editMode ? (
-                                  <TextField fullWidth value={editableData.qualifications?.[index]?.discipline || ''} onChange={(e) => handleNestedFieldChange('qualifications', index, { ...editableData.qualifications?.[index], discipline: e.target.value })} size="small" />
-                                ) : (
-                                  <Typography variant="body1">{qual.discipline}</Typography>
-                                )}
-                              </Grid>
-                              <Grid item xs={12} md={6}>
-                                <Typography variant="subtitle2" color="text.secondary">Year of Qualification</Typography>
-                                {editMode ? (
-                                  <TextField fullWidth type="number" value={editableData.qualifications?.[index]?.yearOfQualification || ''} onChange={(e) => handleNestedFieldChange('qualifications', index, { ...editableData.qualifications?.[index], yearOfQualification: parseInt(e.target.value) })} size="small" />
-                                ) : (
-                                  <Typography variant="body1">{qual.yearOfQualification}</Typography>
-                                )}
-                              </Grid>
-                              {qual.type === 'professionalEngineer' && (
-                                <Grid item xs={12}>
-                                  <Typography variant="subtitle2" color="text.secondary">HKIE Membership</Typography>
-                                  {editMode ? (
-                                    <Stack direction="row" spacing={1}>
-                                      <TextField type="checkbox" label="Corporate Member" checked={editableData.qualifications?.[index]?.hkieMembership?.corporateMember || false} onChange={(e) => handleNestedFieldChange('qualifications', index, { ...editableData.qualifications?.[index], hkieMembership: { ...editableData.qualifications?.[index]?.hkieMembership, corporateMember: e.target.checked } })} size="small" />
-                                      <TextField type="checkbox" label="Equivalent Qualification" checked={editableData.qualifications?.[index]?.hkieMembership?.equivalentQualification || false} onChange={(e) => handleNestedFieldChange('qualifications', index, { ...editableData.qualifications?.[index], hkieMembership: { ...editableData.qualifications?.[index]?.hkieMembership, equivalentQualification: e.target.checked } })} size="small" />
-                                    </Stack>
-                                  ) : (
-                                    <Typography variant="body1">
-                                      Corporate Member: {qual.hkieMembership?.corporateMember ? 'Yes' : 'No'}<br />
-                                      Equivalent Qualification: {qual.hkieMembership?.equivalentQualification ? 'Yes' : 'No'}
-                                    </Typography>
-                                  )}
-                                </Grid>
-                              )}
-                              {qual.type === 'otherQualification' && (
-                                <Grid item xs={12} md={6}>
-                                  <Typography variant="subtitle2" color="text.secondary">Issuing Body</Typography>
-                                  {editMode ? (
-                                    <TextField fullWidth value={editableData.qualifications?.[index]?.issuingBody || ''} onChange={(e) => handleNestedFieldChange('qualifications', index, { ...editableData.qualifications?.[index], issuingBody: e.target.value })} size="small" />
-                                  ) : (
-                                    <Typography variant="body1">{qual.issuingBody}</Typography>
-                                  )}
-                                </Grid>
-                              )}
+                              </Box>
                             </Grid>
-                          </Box>
-                        ))}
-                      </CardContent>
-                    </Card>
-
+                            {/* Company Name */}
+                            <Grid item xs={12} sm={6} md={4} lg={3}>
+                              <Box sx={{ mb: 1 }}>
+                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Company Name</Typography>
+                                {editMode ? (
+                                  <TextField
+                                    fullWidth
+                                    value={editableData.applicantInfo?.currentCompany?.name || ''}
+                                    onChange={(e) => handleNestedFieldChange('applicantInfo', 'currentCompany', { ...editableData.applicantInfo?.currentCompany, name: e.target.value })}
+                                    size="small"
+                                    margin="dense"
+                                    sx={{ mt: 0.5 }}
+                                  />
+                                ) : (
+                                  <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{applicationData.applicantInfo?.currentCompany?.name}</Typography>
+                                )}
+                              </Box>
+                            </Grid>
+                            {/* Position */}
+                            <Grid item xs={12} sm={6} md={4} lg={3}>
+                              <Box sx={{ mb: 1 }}>
+                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Position</Typography>
+                                {editMode ? (
+                                  <TextField
+                                    fullWidth
+                                    value={editableData.applicantInfo?.position || ''}
+                                    onChange={(e) => handleNestedFieldChange('applicantInfo', 'position', e.target.value)}
+                                    size="small"
+                                    margin="dense"
+                                    sx={{ mt: 0.5 }}
+                                  />
+                                ) : (
+                                  <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{applicationData.applicantInfo?.position}</Typography>
+                                )}
+                              </Box>
+                            </Grid>
+                            {/* Office Phone */}
+                            <Grid item xs={12} sm={6} md={4} lg={3}>
+                              <Box sx={{ mb: 1 }}>
+                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Office Phone</Typography>
+                                {editMode ? (
+                                  <TextField
+                                    fullWidth
+                                    value={editableData.applicantInfo?.contact?.officePhone || ''}
+                                    onChange={(e) => handleNestedFieldChange('applicantInfo', 'contact', { ...editableData.applicantInfo?.contact, officePhone: e.target.value })}
+                                    size="small"
+                                    margin="dense"
+                                    sx={{ mt: 0.5 }}
+                                  />
+                                ) : (
+                                  <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{applicationData.applicantInfo?.contact?.officePhone}</Typography>
+                                )}
+                              </Box>
+                            </Grid>
+                            {/* Fax */}
+                            <Grid item xs={12} sm={6} md={4} lg={3}>
+                              <Box sx={{ mb: 1 }}>
+                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Fax</Typography>
+                                {editMode ? (
+                                  <TextField
+                                    fullWidth
+                                    value={editableData.applicantInfo?.contact?.fax || ''}
+                                    onChange={(e) => handleNestedFieldChange('applicantInfo', 'contact', { ...editableData.applicantInfo?.contact, fax: e.target.value })}
+                                    size="small"
+                                    margin="dense"
+                                    sx={{ mt: 0.5 }}
+                                  />
+                                ) : (
+                                  <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{applicationData.applicantInfo?.contact?.fax}</Typography>
+                                )}
+                              </Box>
+                            </Grid>
+                            {/* Address */}
+                            <Grid item xs={12}>
+                              <Box sx={{ mb: 1 }}>
+                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Address</Typography>
+                                {editMode ? (
+                                  <Grid container spacing={1}>
+                                    <Grid item xs={12} sm={2}><TextField fullWidth label="Flat" value={editableData.applicantInfo?.currentCompany?.address?.flat || ''} onChange={(e) => handleAddressChange('applicantInfo', 'currentCompany', { ...editableData.applicantInfo?.currentCompany?.address, flat: e.target.value })} size="small" margin="dense" /></Grid>
+                                    <Grid item xs={12} sm={2}><TextField fullWidth label="Floor" value={editableData.applicantInfo?.currentCompany?.address?.floor || ''} onChange={(e) => handleAddressChange('applicantInfo', 'currentCompany', { ...editableData.applicantInfo?.currentCompany?.address, floor: e.target.value })} size="small" margin="dense" /></Grid>
+                                    <Grid item xs={12} sm={2}><TextField fullWidth label="Block" value={editableData.applicantInfo?.currentCompany?.address?.block || ''} onChange={(e) => handleAddressChange('applicantInfo', 'currentCompany', { ...editableData.applicantInfo?.currentCompany?.address, block: e.target.value })} size="small" margin="dense" /></Grid>
+                                    <Grid item xs={12} sm={6}><TextField fullWidth label="Building" value={editableData.applicantInfo?.currentCompany?.address?.building || ''} onChange={(e) => handleAddressChange('applicantInfo', 'currentCompany', { ...editableData.applicantInfo?.currentCompany?.address, building: e.target.value })} size="small" margin="dense" /></Grid>
+                                    <Grid item xs={12} sm={6}><TextField fullWidth label="Street" value={editableData.applicantInfo?.currentCompany?.address?.street || ''} onChange={(e) => handleAddressChange('applicantInfo', 'currentCompany', { ...editableData.applicantInfo?.currentCompany?.address, street: e.target.value })} size="small" margin="dense" /></Grid>
+                                    <Grid item xs={12} sm={6}><TextField fullWidth label="City" value={editableData.applicantInfo?.currentCompany?.address?.city || ''} onChange={(e) => handleAddressChange('applicantInfo', 'currentCompany', { ...editableData.applicantInfo?.currentCompany?.address, city: e.target.value })} size="small" margin="dense" /></Grid>
+                                  </Grid>
+                                ) : (
+                                  <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{renderAddress(applicationData.applicantInfo?.currentCompany?.address)}</Typography>
+                                )}
+                              </Box>
+                            </Grid>
+                          </Grid>
+                        </CardContent>
+                      </Card>
                     )}
 
-                    {caseData.caseType !== 'COCR S1' && (
-                      /* Practical Experience Card */
-                      <Card sx={{ mb: 2 }}>
-                        <CardContent>
-                        <Typography variant="h6" gutterBottom>Practical Experience</Typography>
-                        {applicationData.practicalExperience?.map((exp, index) => (
-                          <Box key={index} sx={{ mb: 2, p: 1, border: '1px solid #eee', borderRadius: 1 }}>
-                            <Grid container spacing={2}>
-                              <Grid item xs={12} md={6}><Typography variant="subtitle2" color="text.secondary">Start Date</Typography>{editMode ? <TextField fullWidth type="date" InputLabelProps={{ shrink: true }} value={editableData.practicalExperience?.[index]?.startDate || ''} onChange={(e) => handleNestedFieldChange('practicalExperience', index, { ...editableData.practicalExperience?.[index], startDate: e.target.value })} size="small" /> : <Typography variant="body1">{exp.startDate}</Typography>}</Grid>
-                              <Grid item xs={12} md={6}><Typography variant="subtitle2" color="text.secondary">End Date</Typography>{editMode ? <TextField fullWidth type="date" InputLabelProps={{ shrink: true }} value={editableData.practicalExperience?.[index]?.endDate || ''} onChange={(e) => handleNestedFieldChange('practicalExperience', index, { ...editableData.practicalExperience?.[index], endDate: e.target.value })} size="small" /> : <Typography variant="body1">{exp.endDate}</Typography>}</Grid>
-                              <Grid item xs={12} md={6}><Typography variant="subtitle2" color="text.secondary">Position</Typography>{editMode ? <TextField fullWidth value={editableData.practicalExperience?.[index]?.position || ''} onChange={(e) => handleNestedFieldChange('practicalExperience', index, { ...editableData.practicalExperience?.[index], position: e.target.value })} size="small" /> : <Typography variant="body1">{exp.position}</Typography>}</Grid>
-                              <Grid item xs={12} md={6}><Typography variant="subtitle2" color="text.secondary">Company</Typography>{editMode ? <TextField fullWidth value={editableData.practicalExperience?.[index]?.company || ''} onChange={(e) => handleNestedFieldChange('practicalExperience', index, { ...editableData.practicalExperience?.[index], company: e.target.value })} size="small" /> : <Typography variant="body1">{exp.company}</Typography>}</Grid>
-                              <Grid item xs={12}><Typography variant="subtitle2" color="text.secondary">Description</Typography>{editMode ? <TextField fullWidth multiline rows={2} value={editableData.practicalExperience?.[index]?.description || ''} onChange={(e) => handleNestedFieldChange('practicalExperience', index, { ...editableData.practicalExperience?.[index], description: e.target.value })} size="small" /> : <Typography variant="body1">{exp.description}</Typography>}</Grid>
-                            </Grid>
-                          </Box>
-                        ))}
+                    {caseData.caseType === 'REA Registration' && (
+                      /* Qualifications Card */
+                      <Card sx={{ mb: 1 }}>
+                        <CardContent sx={{ p: "8px 16px !important" }}>
+                          <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold', color: 'primary.main', borderBottom: '1px solid', borderColor: 'divider', pb: 0.5 }}>Qualifications</Typography>
+                          {applicationData.qualifications?.map((qual, index) => (
+                            <Box key={index} sx={{ mb: 1, p: 1, border: '1px solid', borderColor: 'divider', borderRadius: 1, bgcolor: 'background.paper' }}>
+                              <Grid container spacing={1}>
+                                <Grid item xs={12} sm={6} md={3}>
+                                  <Box sx={{ mb: 1 }}>
+                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Type</Typography>
+                                    {editMode ? (
+                                      <TextField fullWidth value={editableData.qualifications?.[index]?.type || ''} onChange={(e) => handleNestedFieldChange('qualifications', index, { ...editableData.qualifications?.[index], type: e.target.value })} size="small" margin="dense" />
+                                    ) : (
+                                      <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{qual.type}</Typography>
+                                    )}
+                                  </Box>
+                                </Grid>
+                                <Grid item xs={12} sm={6} md={3}>
+                                  <Box sx={{ mb: 1 }}>
+                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Registration Number</Typography>
+                                    {editMode ? (
+                                      <TextField fullWidth value={editableData.qualifications?.[index]?.registrationNumber || ''} onChange={(e) => handleNestedFieldChange('qualifications', index, { ...editableData.qualifications?.[index], registrationNumber: e.target.value })} size="small" margin="dense" />
+                                    ) : (
+                                      <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{qual.registrationNumber}</Typography>
+                                    )}
+                                  </Box>
+                                </Grid>
+                                <Grid item xs={12} sm={6} md={3}>
+                                  <Box sx={{ mb: 1 }}>
+                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Discipline</Typography>
+                                    {editMode ? (
+                                      <TextField fullWidth value={editableData.qualifications?.[index]?.discipline || ''} onChange={(e) => handleNestedFieldChange('qualifications', index, { ...editableData.qualifications?.[index], discipline: e.target.value })} size="small" margin="dense" />
+                                    ) : (
+                                      <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{qual.discipline}</Typography>
+                                    )}
+                                  </Box>
+                                </Grid>
+                                <Grid item xs={12} sm={6} md={3}>
+                                  <Box sx={{ mb: 1 }}>
+                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Year of Qualification</Typography>
+                                    {editMode ? (
+                                      <TextField fullWidth type="number" value={editableData.qualifications?.[index]?.yearOfQualification || ''} onChange={(e) => handleNestedFieldChange('qualifications', index, { ...editableData.qualifications?.[index], yearOfQualification: parseInt(e.target.value) })} size="small" margin="dense" />
+                                    ) : (
+                                      <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{qual.yearOfQualification}</Typography>
+                                    )}
+                                  </Box>
+                                </Grid>
+                              </Grid>
+                            </Box>
+                          ))}
                         </CardContent>
                       </Card>
                     )}
 
                     {/* Supporting Documents Card */}
-                    <Card sx={{ mb: 2 }}>
-                      <CardContent>
-                        <Typography variant="h6" gutterBottom>Supporting Documents</Typography>
-                        {applicationData.supportingDocuments?.map((doc, index) => (
-                          <Box key={index} sx={{ mb: 1 }}>
-                            <Grid container spacing={2} alignItems="center">
-                              <Grid item xs={12} md={6}><Typography variant="subtitle2" color="text.secondary">Document Type</Typography>{editMode ? <TextField fullWidth value={editableData.supportingDocuments?.[index]?.documentType || ''} onChange={(e) => handleNestedFieldChange('supportingDocuments', index, { ...editableData.supportingDocuments?.[index], documentType: e.target.value })} size="small" /> : <Typography variant="body1">{doc.documentType}</Typography>}</Grid>
-                              <Grid item xs={12} md={6}><Typography variant="subtitle2" color="text.secondary">Status</Typography>{editMode ? <TextField fullWidth value={editableData.supportingDocuments?.[index]?.status || ''} onChange={(e) => handleNestedFieldChange('supportingDocuments', index, { ...editableData.supportingDocuments?.[index], status: e.target.value })} size="small" /> : <Chip label={doc.status} size="small" color={doc.status === 'attached' ? 'success' : (doc.status === 'pending' ? 'primary' : 'warning')} />}</Grid>
+                    <Card sx={{ mb: 1 }}>
+                      <CardContent sx={{ p: "8px 16px !important" }}>
+                        <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold', color: 'primary.main', borderBottom: '1px solid', borderColor: 'divider', pb: 0.5 }}>Supporting Documents</Typography>
+                        <Grid container spacing={1}>
+                          {applicationData.supportingDocuments?.map((doc, index) => (
+                            <Grid item xs={12} sm={6} md={4} key={index}>
+                              <Box sx={{ mb: 1 }}>
+                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>{doc.documentType}</Typography>
+                                {editMode ? (
+                                  <TextField fullWidth value={editableData.supportingDocuments?.[index]?.status || ''} onChange={(e) => handleNestedFieldChange('supportingDocuments', index, { ...editableData.supportingDocuments?.[index], status: e.target.value })} size="small" margin="dense" select>
+                                    <MenuItem value="attached">Attached</MenuItem>
+                                    <MenuItem value="pending">Pending</MenuItem>
+                                    <MenuItem value="not required">Not Required</MenuItem>
+                                  </TextField>
+                                ) : (
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <Chip 
+                                      label={doc.status} 
+                                      size="small" 
+                                      color={doc.status === 'attached' ? 'success' : (doc.status === 'pending' ? 'primary' : 'warning')}
+                                      sx={{ height: '22px', '& .MuiChip-label': { px: 1, py: 0.25, fontSize: '0.75rem' } }}
+                                    />
+                                    {doc.status === 'attached' && doc.fileName && (
+                                      <Typography variant="body2" component="a" href="#" sx={{ textDecoration: 'underline', color: 'primary.main', cursor: 'pointer' }}>
+                                        {doc.fileName}
+                                      </Typography>
+                                    )}
+                                  </Box>
+                                )}
+                              </Box>
                             </Grid>
-                          </Box>
-                        ))}
-                      </CardContent>
-                    </Card>
-
-                    {/* Disclosure Preferences Card */}
-                    <Card sx={{ mb: 2 }}>
-                      <CardContent>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                          <Typography variant="h6">Disclosure Preferences</Typography>
-                        </Box>
-                        {editMode ? (
-                          <FormGroup>
-                            <FormControlLabel
-                              control={
-                                <Checkbox
-                                  checked={editableData.disclosurePreferences?.emailDisclosure || false}
-                                  onChange={(e) => handleNestedFieldChange('disclosurePreferences', 'emailDisclosure', e.target.checked)}
-                                  size="small"
-                                />
-                              }
-                              label="Email Disclosure"
-                            />
-                            <FormControlLabel
-                              control={
-                                <Checkbox
-                                  checked={editableData.disclosurePreferences?.phoneDisclosure || false}
-                                  onChange={(e) => handleNestedFieldChange('disclosurePreferences', 'phoneDisclosure', e.target.checked)}
-                                  size="small"
-                                />
-                              }
-                              label="Phone Disclosure"
-                            />
-                          </FormGroup>
-                        ) : (
-                          <Grid container spacing={2}>
-                            <Grid item xs={12} sm={6}>
-                              <Typography variant="subtitle2" color="text.secondary">Email Disclosure</Typography>
-                              <Typography variant="body1">
-                                {applicationData.disclosurePreferences?.emailDisclosure ? 'Yes' : 'No'}
-                              </Typography>
-                            </Grid>
-                            <Grid item xs={12} sm={6}>
-                              <Typography variant="subtitle2" color="text.secondary">Phone Disclosure</Typography>
-                              <Typography variant="body1">
-                                {applicationData.disclosurePreferences?.phoneDisclosure ? 'Yes' : 'No'}
-                              </Typography>
-                            </Grid>
-                          </Grid>
-                        )}
+                          ))}
+                        </Grid>
                       </CardContent>
                     </Card>
 
                     {/* Application Fee Card */}
-                    <Card sx={{ mb: 2 }}>
-                      <CardContent>
-                        <Typography variant="h6" gutterBottom>Application Fee</Typography>
-                        <Grid container spacing={2}>
-                          <Grid item xs={12} md={3}><Typography variant="subtitle2" color="text.secondary">Amount</Typography>{editMode ? <TextField fullWidth type="number" value={editableData.applicationFee?.amount || ''} onChange={(e) => handleNestedFieldChange('applicationFee', 'amount', parseFloat(e.target.value))} size="small" /> : <Typography variant="body1">{applicationData.applicationFee?.amount}</Typography>}</Grid>
-                          <Grid item xs={12} md={3}><Typography variant="subtitle2" color="text.secondary">Currency</Typography>{editMode ? <TextField fullWidth value={editableData.applicationFee?.currency || ''} onChange={(e) => handleNestedFieldChange('applicationFee', 'currency', e.target.value)} size="small" /> : <Typography variant="body1">{applicationData.applicationFee?.currency}</Typography>}</Grid>
-                          <Grid item xs={12} md={3}><Typography variant="subtitle2" color="text.secondary">Payment Method</Typography>{editMode ? <TextField fullWidth value={editableData.applicationFee?.paymentMethod || ''} onChange={(e) => handleNestedFieldChange('applicationFee', 'paymentMethod', e.target.value)} size="small" /> : <Typography variant="body1">{applicationData.applicationFee?.paymentMethod}</Typography>}</Grid>
-                          <Grid item xs={12} md={3}><Typography variant="subtitle2" color="text.secondary">Reference Number</Typography>{editMode ? <TextField fullWidth value={editableData.applicationFee?.referenceNumber || ''} onChange={(e) => handleNestedFieldChange('applicationFee', 'referenceNumber', e.target.value)} size="small" /> : <Typography variant="body1">{applicationData.applicationFee?.referenceNumber}</Typography>}</Grid>
-                        </Grid>
-                      </CardContent>
-                    </Card>
-
-                    {/* Submission Info Card */}
-                    <Card sx={{ mb: 2 }}>
-                      <CardContent>
-                        <Typography variant="h6" gutterBottom>Submission Information</Typography>
-                        <Grid container spacing={2}>
-                          <Grid item xs={12} md={4}><Typography variant="subtitle2" color="text.secondary">Submission Date</Typography>{editMode ? <TextField fullWidth type="date" InputLabelProps={{ shrink: true }} value={editableData.submissionInfo?.submissionDate || ''} onChange={(e) => handleNestedFieldChange('submissionInfo', 'submissionDate', e.target.value)} size="small" /> : <Typography variant="body1">{applicationData.submissionInfo?.submissionDate}</Typography>}</Grid>
-                          <Grid item xs={12} md={4}><Typography variant="subtitle2" color="text.secondary">Submission Method</Typography>{editMode ? <TextField fullWidth value={editableData.submissionInfo?.submissionMethod || ''} onChange={(e) => handleNestedFieldChange('submissionInfo', 'submissionMethod', e.target.value)} size="small" /> : <Typography variant="body1">{applicationData.submissionInfo?.submissionMethod}</Typography>}</Grid>
-                          <Grid item xs={12} md={4}><Typography variant="subtitle2" color="text.secondary">Interview Scheduled</Typography>{editMode ? <TextField type="checkbox" checked={editableData.submissionInfo?.interviewScheduled || false} onChange={(e) => handleNestedFieldChange('submissionInfo', 'interviewScheduled', e.target.checked)} size="small" /> : <Typography variant="body1">{applicationData.submissionInfo?.interviewScheduled ? 'Yes' : 'No'}</Typography>}</Grid>
-                          {applicationData.submissionInfo?.interviewScheduled && (
-                            <Grid item xs={12} md={4}><Typography variant="subtitle2" color="text.secondary">Interview Time</Typography>{editMode ? <TextField fullWidth type="datetime-local" InputLabelProps={{ shrink: true }} value={editableData.submissionInfo?.interviewTime || ''} onChange={(e) => handleNestedFieldChange('submissionInfo', 'interviewTime', e.target.value)} size="small" /> : <Typography variant="body1">{new Date(applicationData.submissionInfo?.interviewTime).toLocaleString()}</Typography>}</Grid>
-                          )}
-                        </Grid>
-                      </CardContent>
-                    </Card>
-
-                    {/* Regulatory Compliance Card */}
-                    <Card sx={{ mb: 2 }}>
-                      <CardContent>
-                        <Typography variant="h6" gutterBottom>Regulatory Compliance</Typography>
-                        <Grid container spacing={2}>
-                          <Grid item xs={12} md={6}><Typography variant="subtitle2" color="text.secondary">Anti-Corruption Declaration</Typography>{editMode ? <TextField type="checkbox" checked={editableData.regulatoryCompliance?.antiCorruptionDeclaration || false} onChange={(e) => handleNestedFieldChange('regulatoryCompliance', 'antiCorruptionDeclaration', e.target.checked)} size="small" /> : <Typography variant="body1">{applicationData.regulatoryCompliance?.antiCorruptionDeclaration ? 'Yes' : 'No'}</Typography>}</Grid>
-                          <Grid item xs={12} md={6}><Typography variant="subtitle2" color="text.secondary">Data Privacy Consent</Typography>{editMode ? <TextField type="checkbox" checked={editableData.regulatoryCompliance?.dataPrivacyConsent || false} onChange={(e) => handleNestedFieldChange('regulatoryCompliance', 'dataPrivacyConsent', e.target.checked)} size="small" /> : <Typography variant="body1">{applicationData.regulatoryCompliance?.dataPrivacyConsent ? 'Yes' : 'No'}</Typography>}</Grid>
+                    <Card sx={{ mb: 1 }}>
+                      <CardContent sx={{ p: "8px 16px !important" }}>
+                        <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold', color: 'primary.main', borderBottom: '1px solid', borderColor: 'divider', pb: 0.5 }}>Application Fee</Typography>
+                        <Grid container spacing={1}>
+                          <Grid item xs={12} sm={6} md={3} lg={2}>
+                            <Box sx={{ mb: 1 }}>
+                              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Amount</Typography>
+                              {editMode ? (
+                                <TextField fullWidth type="number" value={editableData.applicationFee?.amount || ''} onChange={(e) => handleNestedFieldChange('applicationFee', 'amount', parseFloat(e.target.value))} size="small" margin="dense" />
+                              ) : (
+                                <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{applicationData.applicationFee?.amount}</Typography>
+                              )}
+                            </Box>
+                          </Grid>
+                          <Grid item xs={12} sm={6} md={3} lg={2}>
+                            <Box sx={{ mb: 1 }}>
+                              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Currency</Typography>
+                              {editMode ? (
+                                <TextField fullWidth value={editableData.applicationFee?.currency || ''} onChange={(e) => handleNestedFieldChange('applicationFee', 'currency', e.target.value)} size="small" margin="dense" />
+                              ) : (
+                                <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{applicationData.applicationFee?.currency}</Typography>
+                              )}
+                            </Box>
+                          </Grid>
+                          <Grid item xs={12} sm={6} md={3} lg={2}>
+                            <Box sx={{ mb: 1 }}>
+                              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Payment Method</Typography>
+                              {editMode ? (
+                                <TextField fullWidth value={editableData.applicationFee?.paymentMethod || ''} onChange={(e) => handleNestedFieldChange('applicationFee', 'paymentMethod', e.target.value)} size="small" margin="dense" />
+                              ) : (
+                                <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{applicationData.applicationFee?.paymentMethod}</Typography>
+                              )}
+                            </Box>
+                          </Grid>
+                          <Grid item xs={12} sm={6} md={3} lg={2}>
+                            <Box sx={{ mb: 1 }}>
+                              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Reference Number</Typography>
+                              {editMode ? (
+                                <TextField fullWidth value={editableData.applicationFee?.referenceNumber || ''} onChange={(e) => handleNestedFieldChange('applicationFee', 'referenceNumber', e.target.value)} size="small" margin="dense" />
+                              ) : (
+                                <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{applicationData.applicationFee?.referenceNumber}</Typography>
+                              )}
+                            </Box>
+                          </Grid>
                         </Grid>
                       </CardContent>
                     </Card>
@@ -1319,26 +1319,29 @@ const CaseDetail = () => {
                       </FormControl>
                       
                       <Button 
-                        variant="outlined" 
-                        startIcon={<FilterListIcon />}
+                        variant="text" 
+                        size="small"
                         onClick={() => setAdvancedFilterOpen(!advancedFilterOpen)}
+                        startIcon={<FilterListIcon fontSize="small" />}
+                        sx={{ minWidth: 'unset' }}
                       >
-                        More Filters
+                        More
                       </Button>
                       
                       <Button 
-                        variant="outlined" 
+                        variant="text" 
+                        size="small"
                         color="secondary"
                         onClick={() => {
                           setTaskFilter('');
                           setStatusFilter('');
-                          setStoFilter('');
                           setDueDateFromFilter('');
                           setDueDateToFilter('');
                           setAdvancedFilterOpen(false);
                         }}
+                        sx={{ minWidth: 'unset' }}
                       >
-                        Clear Filters
+                        Clear
                       </Button>
                     </Paper>
                     
@@ -1348,13 +1351,13 @@ const CaseDetail = () => {
                         <Grid container spacing={2}>
                           <Grid item xs={12} sm={6} md={4}>
                             <TextField
-                              label="STO"
-                              placeholder="Filter by STO"
+                              label="Action By"
+                              placeholder="Filter by any role"
                               variant="outlined"
                               size="small"
                               fullWidth
-                              value={stoFilter}
-                              onChange={(e) => setStoFilter(e.target.value)}
+                              value={searchTaskActionBy}
+                              onChange={(e) => setSearchTaskActionBy(e.target.value)}
                             />
                           </Grid>
                           <Grid item xs={12} sm={6} md={4}>
@@ -1410,13 +1413,24 @@ const CaseDetail = () => {
                         >
                           <ListItemText 
                             primary={<Typography variant="subtitle1" fontWeight="medium">{task.name}</Typography>} 
-                            secondary={`STO: ${task.sto} | SE: ${task.se} | Due: ${task.dueDate}`}
+                            secondary={
+                              <Box sx={{ mt: 0.5 }}>
+                                <Typography variant="body2" component="span" sx={{ display: 'inline-block', mr: 2 }}>
+                                  <Typography component="span" variant="caption" color="text.secondary" sx={{ fontWeight: 'medium' }}>Due: </Typography>
+                                  {task.dueDate}
+                                </Typography>
+                                <Typography variant="body2" component="span">
+                                  <Typography component="span" variant="caption" color="text.secondary" sx={{ fontWeight: 'medium' }}>Action By: </Typography>
+                                  {formatActionBy(task.actionBy)}
+                                </Typography>
+                              </Box>
+                            }
                             sx={{ mr: 2 }}
                           />
                           <Chip 
                             label={task.status} 
                             size="small" 
-                            color={task.status === 'Pending' ? 'primary' : (task.status === 'In Progress' ? 'warning' : 'success')}
+                            color={task.status === 'In Progress' ? 'primary' : (task.status === 'Pending' ? 'warning' : (task.status === 'Rejected' ? 'error' : (task.status === 'Completed' || task.status === 'Closed' ? 'success' : 'default')))}
                             sx={{ fontWeight: 'medium' }}
                           />
                         </ListItem>
@@ -1434,64 +1448,215 @@ const CaseDetail = () => {
                 )}
                 {tabValue === 2 && (
                   <Box>
-                    <Typography variant="h6" gutterBottom>Attachments</Typography>
-                    <AttachmentUpload />
+                    <Card sx={{ mb: 2 }}>
+                      <CardContent sx={{ p: "12px 16px !important" }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                          <Typography variant="subtitle1" sx={{ fontWeight: 'medium' }}>Attachments</Typography>
+                          <TextField
+                            placeholder="Search attachments"
+                            size="small"
+                            InputProps={{
+                              startAdornment: (
+                                <InputAdornment position="start">
+                                  <SearchIcon fontSize="small" />
+                                </InputAdornment>
+                              ),
+                            }}
+                            sx={{ width: '250px' }}
+                          />
+                        </Box>
+                      </CardContent>
+                    </Card>
+                    
+                    <TableContainer component={Paper} sx={{ boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow sx={{ bgcolor: 'grey.50' }}>
+                            <TableCell>File Name</TableCell>
+                            <TableCell>Description</TableCell>
+                            <TableCell>Type</TableCell>
+                            <TableCell>Uploaded By</TableCell>
+                            <TableCell>Upload Date</TableCell>
+                            <TableCell>Actions</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          <TableRow>
+                            <TableCell>
+                              <Typography variant="body2" component="a" href="#" sx={{ textDecoration: 'underline', color: 'primary.main', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                <AssignmentIcon fontSize="small" /> Application_Form.pdf
+                              </Typography>
+                            </TableCell>
+                            <TableCell>REA Application Form</TableCell>
+                            <TableCell>PDF</TableCell>
+                            <TableCell>John Doe</TableCell>
+                            <TableCell>2023-11-20</TableCell>
+                            <TableCell>
+                              <IconButton size="small">
+                                <MoreVertIcon fontSize="small" />
+                              </IconButton>
+                            </TableCell>
+                          </TableRow>
+                          <TableRow>
+                            <TableCell>
+                              <Typography variant="body2" component="a" href="#" sx={{ textDecoration: 'underline', color: 'primary.main', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                <AssignmentIcon fontSize="small" /> Professional_Certificate.pdf
+                              </Typography>
+                            </TableCell>
+                            <TableCell>Professional Engineering Certificate</TableCell>
+                            <TableCell>PDF</TableCell>
+                            <TableCell>John Doe</TableCell>
+                            <TableCell>2023-11-20</TableCell>
+                            <TableCell>
+                              <IconButton size="small">
+                                <MoreVertIcon fontSize="small" />
+                              </IconButton>
+                            </TableCell>
+                          </TableRow>
+                          <TableRow>
+                            <TableCell>
+                              <Typography variant="body2" component="a" href="#" sx={{ textDecoration: 'underline', color: 'primary.main', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                <AssignmentIcon fontSize="small" /> Experience_Letter.pdf
+                              </Typography>
+                            </TableCell>
+                            <TableCell>Experience Verification Letter</TableCell>
+                            <TableCell>PDF</TableCell>
+                            <TableCell>John Doe</TableCell>
+                            <TableCell>2023-11-20</TableCell>
+                            <TableCell>
+                              <IconButton size="small">
+                                <MoreVertIcon fontSize="small" />
+                              </IconButton>
+                            </TableCell>
+                          </TableRow>
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                    <Box sx={{ mt: 2 }}>
+                      <AttachmentUpload />
+                    </Box>
                   </Box>
                 )}
                 {tabValue === 3 && (
                   <Box>
-                    <Typography variant="h6" gutterBottom>Related Cases</Typography>
-                    <Grid container spacing={2}>
-                      {relatedCases.map((relatedCase) => (
-                        <Grid item xs={12} key={relatedCase.id}>
-                          <Card>
-                            <CardContent sx={{ p: 2 }}>
-                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <Box>
-                                  <Typography variant="subtitle1">{relatedCase.title}</Typography>
-                                  <Typography variant="body2" color="text.secondary">Case ID: {relatedCase.id}</Typography>
-                                </Box>
-                                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                                  <Chip
-                                    size="small"
-                                    label={relatedCase.status}
-                                    color={relatedCase.status === 'Open' ? 'primary' : 'default'}
-                                  />
-                                  <Button
-                                    variant="outlined"
-                                    size="small"
-                                    onClick={() => handleCaseChange(relatedCase.id)}
-                                  >
-                                    View Case
-                                  </Button>
-                                </Box>
-                              </Box>
-                            </CardContent>
-                          </Card>
-                        </Grid>
-                      ))}
-                    </Grid>
+                    <Card sx={{ mb: 2 }}>
+                      <CardContent sx={{ p: "12px 16px !important" }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Typography variant="subtitle1" sx={{ fontWeight: 'medium' }}>Related Cases</Typography>
+                          <TextField
+                            placeholder="Search related cases"
+                            size="small"
+                            InputProps={{
+                              startAdornment: (
+                                <InputAdornment position="start">
+                                  <SearchIcon fontSize="small" />
+                                </InputAdornment>
+                              ),
+                            }}
+                            sx={{ width: '250px' }}
+                          />
+                        </Box>
+                      </CardContent>
+                    </Card>
+                    
+                    <TableContainer component={Paper} sx={{ boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow sx={{ bgcolor: 'grey.50' }}>
+                            <TableCell>Case ID</TableCell>
+                            <TableCell>File No.</TableCell>
+                            <TableCell>Case Type</TableCell>
+                            <TableCell>Status</TableCell>
+                            <TableCell>Created Date</TableCell>
+                            <TableCell>Actions</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {relatedCases.map((relatedCase) => (
+                            <TableRow key={relatedCase.id}>
+                              <TableCell>{relatedCase.id}</TableCell>
+                              <TableCell>{casesData[relatedCase.id].fileNo}</TableCell>
+                              <TableCell>{casesData[relatedCase.id].caseType}</TableCell>
+                              <TableCell>
+                                <Chip
+                                  size="small"
+                                  label={relatedCase.status}
+                                  color={relatedCase.status === 'Open' ? 'primary' : (relatedCase.status === 'In Progress' ? 'primary' : (relatedCase.status === 'Pending' ? 'warning' : (relatedCase.status === 'Rejected' ? 'error' : (relatedCase.status === 'Completed' || relatedCase.status === 'Closed' ? 'success' : 'default'))))}
+                                  sx={{ height: '22px', '& .MuiChip-label': { px: 1, py: 0.25, fontSize: '0.75rem' } }}
+                                />
+                              </TableCell>
+                              <TableCell>{casesData[relatedCase.id].createdDate}</TableCell>
+                              <TableCell>
+                                <Button
+                                  variant="outlined"
+                                  size="small"
+                                  onClick={() => handleCaseChange(relatedCase.id)}
+                                  sx={{ height: '24px', fontSize: '0.75rem', minWidth: '60px' }}
+                                >
+                                  View
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
                   </Box>
                 )}
-                {tabValue === 4 && (                  <TimelineContainer>
-                    {mockHistory.map((item, index) => (
-                      <TimelineEntry key={index}>
-                        <TimelineDot />
-                        <Box>
-                          <Typography variant="body2" color="text.secondary">
-                            {item.date}
-                          </Typography>
-                          <Typography variant="body1">
-                            {item.action}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {item.actor}
-                          </Typography>
-                          {index < mockHistory.length - 1 && <Divider sx={{ mt: 1, mb: 1 }} />}
+                {tabValue === 4 && (
+                  <Box>
+                    <Card sx={{ mb: 2 }}>
+                      <CardContent sx={{ p: "12px 16px !important" }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Typography variant="subtitle1" sx={{ fontWeight: 'medium' }}>Case History</Typography>
+                          <Box sx={{ display: 'flex', gap: 1 }}>
+                            <FormControl variant="outlined" size="small" sx={{ minWidth: 150 }}>
+                              <InputLabel>Filter by</InputLabel>
+                              <Select
+                                label="Filter by"
+                                value=""
+                              >
+                                <MenuItem value="all">All Events</MenuItem>
+                                <MenuItem value="task">Task Events</MenuItem>
+                                <MenuItem value="document">Document Events</MenuItem>
+                                <MenuItem value="status">Status Changes</MenuItem>
+                              </Select>
+                            </FormControl>
+                          </Box>
                         </Box>
-                      </TimelineEntry>
-                    ))}
-                  </TimelineContainer>
+                      </CardContent>
+                    </Card>
+                    
+                    <Paper sx={{ p: 2, border: '1px solid', borderColor: 'divider', boxShadow: 'none' }}>
+                      <TimelineContainer>
+                        {mockHistory.map((item, index) => (
+                          <TimelineEntry key={index}>
+                            <TimelineDot />
+                            <Box sx={{ flex: 1 }}>
+                              <Grid container spacing={1} alignItems="center">
+                                <Grid item xs={12} sm={2}>
+                                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'medium' }}>
+                                    {item.date}
+                                  </Typography>
+                                </Grid>
+                                <Grid item xs={12} sm={8}>
+                                  <Typography variant="body2">
+                                    {item.action}
+                                  </Typography>
+                                </Grid>
+                                <Grid item xs={12} sm={2}>
+                                  <Typography variant="caption" color="text.secondary">
+                                    By: {item.actor}
+                                  </Typography>
+                                </Grid>
+                              </Grid>
+                              {index < mockHistory.length - 1 && <Divider sx={{ mt: 1.5, mb: 1.5 }} />}
+                            </Box>
+                          </TimelineEntry>
+                        ))}
+                      </TimelineContainer>
+                    </Paper>
+                  </Box>
                 )}
               </Box>
             </Paper>
@@ -1513,255 +1678,235 @@ const CaseDetail = () => {
                 </IconButton>
               </Box>
 
-              <Box sx={{ flex: 1, overflow: 'auto', p: 3 }}>
-                <Grid container spacing={2}>
-                  <Grid item xs={12}>
-                    <TextField
-                      fullWidth
-                      label="Task Name"
-                      value={selectedTask?.name || ''}
-                      onChange={(e) => setSelectedTask(prev => ({ ...prev, name: e.target.value }))}
-                      variant="outlined"
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="Status"
-                      value={selectedTask?.status || ''}
-                      onChange={(e) => setSelectedTask(prev => ({ ...prev, status: e.target.value }))}
-                      variant="outlined"
-                      select
-                      SelectProps={{ native: true }}
-                    >
-                      <option value="Pending">Pending</option>
-                      <option value="In Progress">In Progress</option>
-                      <option value="Completed">Completed</option>
-                      <option value="Cancelled">Cancelled</option>
-                    </TextField>
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="STO"
-                      value={selectedTask?.sto || ''}
-                      onChange={(e) => setSelectedTask(prev => ({ ...prev, officer: e.target.value }))}
-                      variant="outlined"
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="Due Date"
-                      type="date"
-                      value={selectedTask?.dueDate || ''}
-                      onChange={(e) => setSelectedTask(prev => ({ ...prev, dueDate: e.target.value }))}
-                      InputLabelProps={{ shrink: true }}
-                      variant="outlined"
-                    />
-                  </Grid>
-                  <Grid item xs={12}>
-                    <TextField
-                      fullWidth
-                      multiline
-                      rows={4}
-                      label="Description"
-                      value={selectedTask?.description || ''}
-                      onChange={(e) => setSelectedTask(prev => ({ ...prev, description: e.target.value }))}
-                      variant="outlined"
-                    />
-                  </Grid>
-                </Grid>
-
-                {selectedTask?.id === 3 && (
+              <Box sx={{ flex: 1, overflow: 'auto', p: 0 }}>
+                {/* Task Info Panel */}
+                <Box sx={{ bgcolor: 'background.paper', p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+                  <Grid container spacing={2}>
                     <Grid item xs={12}>
-                      <Typography variant="h6" gutterBottom sx={{mt: 2}}>Application Checklist</Typography>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Typography variant="h6" sx={{ fontSize: '1.1rem', fontWeight: 'bold', color: 'primary.main' }}>
+                          {selectedTask?.name || 'New Task'}
+                        </Typography>
+                        <Chip 
+                          label={selectedTask?.status || 'New'} 
+                          size="small" 
+                          color={selectedTask?.status === 'In Progress' ? 'primary' : (selectedTask?.status === 'Pending' ? 'warning' : (selectedTask?.status === 'Rejected' ? 'error' : (selectedTask?.status === 'Completed' || selectedTask?.status === 'Closed' ? 'success' : 'default')))}
+                        />
+                      </Box>
                       
-                      <Card sx={{ mb: 3 }}>
-                        <CardContent>
-                          <Typography variant="subtitle1" fontWeight="medium" gutterBottom>1. Completeness of Application Form</Typography>
-                          <TableContainer>
-                            <Table size="small">
-                              <TableHead>
-                                <TableRow>
-                                  <TableCell width="80%">Item</TableCell>
-                                  <TableCell align="center">Yes</TableCell>
-                                  <TableCell align="center">No</TableCell>
-                                </TableRow>
-                              </TableHead>
-                              <TableBody>
-                                {selectedTask && selectedTask.checklistData && selectedTask.checklistData.applicationForm.map((item) => (
-                                  <TableRow key={item.id}>
-                                    <TableCell>{item.label}</TableCell>
-                                    <TableCell align="center">
-                                      <Checkbox 
-                                        checked={item.checked === true}
-                                        onChange={(e) => handleChecklistItemChange('applicationForm', item.id, e.target.checked)}
-                                        size="small"
-                                      />
-                                    </TableCell>
-                                    <TableCell align="center">
-                                      <Checkbox 
-                                        checked={item.checked === false && item.checked !== null}
-                                        onChange={(e) => handleChecklistItemChange('applicationForm', item.id, e.target.checked ? false : null)}
-                                        size="small"
-                                      />
-                                    </TableCell>
-                                  </TableRow>
-                                ))}
-                              </TableBody>
-                            </Table>
-                          </TableContainer>
-                        </CardContent>
-                      </Card>
-                      
-                      <Card>
-                        <CardContent>
-                          <Typography variant="subtitle1" fontWeight="medium" gutterBottom>2. Provision of Supporting Documents</Typography>
-                          
-                          <Typography variant="subtitle2" gutterBottom>2a (not applicable to applications of public officer)</Typography>
-                          <TableContainer>
-                            <Table size="small">
-                              <TableHead>
-                                <TableRow>
-                                  <TableCell width="80%">Item</TableCell>
-                                  <TableCell align="center">Yes</TableCell>
-                                  <TableCell align="center">No</TableCell>
-                                </TableRow>
-                              </TableHead>
-                              <TableBody>
-                                {selectedTask && selectedTask.checklistData && selectedTask.checklistData.supportingDocuments
-                                  .filter(item => !item.applicableToPublic)
-                                  .map((item) => (
-                                    <TableRow key={item.id}>
-                                      <TableCell>
-                                        {item.label}
-                                        {item.id === 'supportingDocs' && (
-                                          <TextField
-                                            fullWidth
-                                            multiline
-                                            rows={3}
-                                            placeholder="Please specify:"
-                                            variant="outlined"
-                                            size="small"
-                                            value={item.additionalNotes || ''}
-                                            onChange={(e) => handleAdditionalNotesChange('supportingDocuments', item.id, e.target.value)}
-                                            sx={{ mt: 1 }}
-                                          />
-                                        )}
-                                      </TableCell>
-                                      <TableCell align="center">
-                                        <Checkbox 
-                                          checked={item.checked === true}
-                                          onChange={(e) => handleChecklistItemChange('supportingDocuments', item.id, e.target.checked)}
-                                          size="small"
-                                        />
-                                      </TableCell>
-                                      <TableCell align="center">
-                                        <Checkbox 
-                                          checked={item.checked === false && item.checked !== null}
-                                          onChange={(e) => handleChecklistItemChange('supportingDocuments', item.id, e.target.checked ? false : null)}
-                                          size="small"
-                                        />
-                                      </TableCell>
-                                    </TableRow>
-                                  ))}
-                              </TableBody>
-                            </Table>
-                          </TableContainer>
-                          
-                          <Typography variant="subtitle2" gutterBottom sx={{ mt: 3 }}>2b (applicable to applications of public officer only)</Typography>
-                          <TableContainer>
-                            <Table size="small">
-                              <TableHead>
-                                <TableRow>
-                                  <TableCell width="80%">Item</TableCell>
-                                  <TableCell align="center">Yes</TableCell>
-                                  <TableCell align="center">No</TableCell>
-                                </TableRow>
-                              </TableHead>
-                              <TableBody>
-                                {selectedTask && selectedTask.checklistData && selectedTask.checklistData.supportingDocuments
-                                  .filter(item => item.applicableToPublic)
-                                  .map((item) => (
-                                    <TableRow key={item.id}>
-                                      <TableCell>{item.label}</TableCell>
-                                      <TableCell align="center">
-                                        <Checkbox 
-                                          checked={item.checked === true}
-                                          onChange={(e) => handleChecklistItemChange('supportingDocuments', item.id, e.target.checked)}
-                                          size="small"
-                                        />
-                                      </TableCell>
-                                      <TableCell align="center">
-                                        <Checkbox 
-                                          checked={item.checked === false && item.checked !== null}
-                                          onChange={(e) => handleChecklistItemChange('supportingDocuments', item.id, e.target.checked ? false : null)}
-                                          size="small"
-                                        />
-                                      </TableCell>
-                                    </TableRow>
-                                  ))}
-                              </TableBody>
-                            </Table>
-                          </TableContainer>
-                        </CardContent>
-                      </Card>
+                      {/* Description */}
+                      <Box sx={{ mt: 2 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 'medium', color: 'text.secondary' }}>Description:</Typography>
+                        <Paper variant="outlined" sx={{ p: 1.5, mt: 0.5, bgcolor: 'grey.50' }}>
+                          <Typography variant="body2">
+                            {selectedTask?.description || 'No description available'}
+                          </Typography>
+                        </Paper>
+                      </Box>
                     </Grid>
-                  )}
+                  </Grid>
+                </Box>
+                
+                {/* Action By Panel */}
+                <Box sx={{ bgcolor: 'background.paper', p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+                  <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+                    Action By
+                  </Typography>
                   
-                  <Grid item xs={12}>
-                    <Typography variant="h6" gutterBottom sx={{mt: 2}}>Task Records</Typography>
-                    <TableContainer component={Paper} elevation={2}>
-                      <Table size="small">
+                  <Grid container spacing={1.5}>
+                    {[
+                      { label: 'Senior Engineer', field: 'seniorEngineer' },
+                      { label: 'Engineer', field: 'engineer' },
+                      { label: 'STO', field: 'sto' },
+                      { label: 'SBSI', field: 'sbsi' },
+                      { label: 'BSI', field: 'bsi' },
+                      { label: 'TO', field: 'to' }
+                    ].map((role) => (
+                      // Only render the field if it's assigned or in new task mode
+                      (selectedTask?.id ? selectedTask?.actionBy?.[role.field] : true) && (
+                        <Grid item xs={6} sm={4} key={role.field}>
+                          <Box sx={{ mb: 1 }}>
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>{role.label}</Typography>
+                            {selectedTask?.id ? (
+                              <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1, height: '32px', display: 'flex', alignItems: 'center' }}>
+                                {selectedTask?.actionBy?.[role.field] || 'Not assigned'}
+                              </Typography>
+                            ) : (
+                              <TextField
+                                fullWidth
+                                placeholder={`Assign ${role.label}`}
+                                size="small"
+                                margin="dense"
+                                sx={{ mt: 0.5 }}
+                              />
+                            )}
+                          </Box>
+                        </Grid>
+                      )
+                    ))}
+                    
+                    <Grid item xs={6} sm={4}>
+                      <Box sx={{ mb: 1 }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Due Date</Typography>
+                        {selectedTask?.id ? (
+                          <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1, height: '32px', display: 'flex', alignItems: 'center' }}>
+                            {selectedTask?.dueDate || 'Not set'}
+                          </Typography>
+                        ) : (
+                          <TextField
+                            fullWidth
+                            type="date"
+                            size="small"
+                            margin="dense"
+                            sx={{ mt: 0.5 }}
+                          />
+                        )}
+                      </Box>
+                    </Grid>
+                    
+                    
+                  </Grid>
+
+                  {/* Add approval section for tasks that need Senior Engineer approval */}
+                  {selectedTask?.id === 3 && (
+                    <Box sx={{ mt: 2, pt: 2, borderTop: '1px dashed', borderColor: 'divider' }}>
+                      <Typography variant="subtitle2" gutterBottom sx={{ color: 'primary.main', fontWeight: 'medium' }}>
+                        Approval Required
+                      </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Typography variant="body2">
+                          This task requires approval by the assigned Senior Engineer
+                        </Typography>
+                        <Button 
+                          variant="contained" 
+                          color="success" 
+                          size="small"
+                          sx={{ ml: 'auto' }}
+                        >
+                          Approve
+                        </Button>
+                      </Box>
+                    </Box>
+                  )}
+                </Box>
+                
+                {/* Task Checklist Section (if available) */}
+                {selectedTask?.checklistData && (
+                  <Box sx={{ bgcolor: 'background.paper', p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+                    <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+                      Application Checklist
+                    </Typography>
+                    
+                    <TableContainer sx={{ maxHeight: '300px', overflowY: 'auto' }}>
+                      <Table size="small" sx={{ tableLayout: 'fixed', '& td, & th': { px: 1, py: 0.75 } }}>
                         <TableHead>
-                          <TableRow>
-                            <TableCell>Date</TableCell>
-                            <TableCell>Action</TableCell>
-                            <TableCell>Remarks</TableCell>
-                            <TableCell>Officer</TableCell>
+                          <TableRow sx={{ bgcolor: 'grey.100' }}>
+                            <TableCell width="70%">Item</TableCell>
+                            <TableCell align="center" width="15%">Yes</TableCell>
+                            <TableCell align="center" width="15%">No</TableCell>
                           </TableRow>
                         </TableHead>
                         <TableBody>
-                          {taskRecords.map((record, index) => (
-                            <TableRow key={index}>
-                              <TableCell>{record.date}</TableCell>
-                              <TableCell>{record.action}</TableCell>
-                              <TableCell>{record.remarks}</TableCell>
-                              <TableCell>{record.officer}</TableCell>
+                          {selectedTask.checklistData.applicationForm.map((item) => (
+                            <TableRow key={item.id}>
+                              <TableCell>{item.label}</TableCell>
+                              <TableCell align="center">
+                                <Checkbox 
+                                  checked={item.checked === true}
+                                  onChange={(e) => handleChecklistItemChange('applicationForm', item.id, e.target.checked)}
+                                  size="small"
+                                />
+                              </TableCell>
+                              <TableCell align="center">
+                                <Checkbox 
+                                  checked={item.checked === false && item.checked !== null}
+                                  onChange={(e) => handleChecklistItemChange('applicationForm', item.id, e.target.checked ? false : null)}
+                                  size="small"
+                                />
+                              </TableCell>
                             </TableRow>
                           ))}
+                          
+                          <TableRow>
+                            <TableCell colSpan={3} sx={{ py: 1, bgcolor: 'grey.100' }}>
+                              <Typography variant="subtitle2">Supporting Documents</Typography>
+                            </TableCell>
+                          </TableRow>
+                          
+                          {selectedTask.checklistData.supportingDocuments
+                            .filter(item => !item.applicableToPublic)
+                            .map((item) => (
+                              <TableRow key={item.id}>
+                                <TableCell>
+                                  {item.label}
+                                  {item.id === 'supportingDocs' && (
+                                    <TextField
+                                      fullWidth
+                                      multiline
+                                      rows={2}
+                                      placeholder="Please specify:"
+                                      variant="outlined"
+                                      size="small"
+                                      value={item.additionalNotes || ''}
+                                      onChange={(e) => handleAdditionalNotesChange('supportingDocuments', item.id, e.target.value)}
+                                      sx={{ mt: 1 }}
+                                    />
+                                  )}
+                                </TableCell>
+                                <TableCell align="center">
+                                  <Checkbox 
+                                    checked={item.checked === true}
+                                    onChange={(e) => handleChecklistItemChange('supportingDocuments', item.id, e.target.checked)}
+                                    size="small"
+                                  />
+                                </TableCell>
+                                <TableCell align="center">
+                                  <Checkbox 
+                                    checked={item.checked === false && item.checked !== null}
+                                    onChange={(e) => handleChecklistItemChange('supportingDocuments', item.id, e.target.checked ? false : null)}
+                                    size="small"
+                                  />
+                                </TableCell>
+                              </TableRow>
+                            ))}
                         </TableBody>
                       </Table>
                     </TableContainer>
-                  </Grid>
-
-                  <Grid item xs={12}>
-                    <Typography variant="subtitle1" gutterBottom sx={{mt:1}}>Add New Record</Typography>
-                    <Grid container spacing={2}>
-                      <Grid item xs={12} md={6}>
-                        <TextField
-                          fullWidth
-                          label="Action"
-                          placeholder="Enter action taken"
-                          variant="outlined"
-                          size="small"
-                        />
-                      </Grid>
-                      <Grid item xs={12} md={6}>
-                        <TextField
-                          fullWidth
-                          label="Remarks"
-                          placeholder="Enter remarks"
-                          variant="outlined"
-                          size="small"
-                        />
-                      </Grid>
-                      <Grid item xs={12} sx={{textAlign: 'right'}}>
-                        <Button variant="contained" size="small">Add Record</Button>
-                      </Grid>
-                    </Grid>
-                  </Grid>
+                  </Box>
+                )}
+                
+                {/* Task Records Table */}
+                <Box sx={{ bgcolor: 'background.paper', p: 2 }}>
+                  <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold', color: 'primary.main', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    Task Records
+                    <Button variant="outlined" size="small" startIcon={<AddIcon fontSize="small" />}>
+                      Add Record
+                    </Button>
+                  </Typography>
+                  
+                  <TableContainer sx={{ mb: 2 }}>
+                    <Table size="small" sx={{ '& td, & th': { px: 1, py: 0.75 } }}>
+                      <TableHead>
+                        <TableRow sx={{ bgcolor: 'grey.100' }}>
+                          <TableCell width="20%">Date</TableCell>
+                          <TableCell width="20%">Action</TableCell>
+                          <TableCell width="40%">Remarks</TableCell>
+                          <TableCell width="20%">Officer</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {taskRecords.map((record, index) => (
+                          <TableRow key={index}>
+                            <TableCell>{record.date}</TableCell>
+                            <TableCell>{record.action}</TableCell>
+                            <TableCell>{record.remarks}</TableCell>
+                            <TableCell>{record.officer}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </Box>
               </Box>
 
               <Box sx={{ display: 'flex', gap: 2, p: 2, borderTop: 1, borderColor: 'divider', flexShrink: 0 }}>
