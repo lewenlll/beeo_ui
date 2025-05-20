@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import {
     Box, Typography, List, ListItem, ListItemIcon, ListItemText, IconButton, Divider, Tooltip, Paper, Fab, Badge, Grow, Chip,
-    ToggleButtonGroup, ToggleButton, Stack, Card, CardContent, Container
+    ToggleButtonGroup, ToggleButton, Stack, Card, CardContent, Container, Table, TableBody, TableCell, TableContainer, 
+    TableHead, TableRow, CircularProgress, Pagination
 } from '@mui/material';
 import HomeIcon from '@mui/icons-material/Home';
 import SearchIcon from '@mui/icons-material/Search';
@@ -9,6 +10,11 @@ import ApartmentIcon from '@mui/icons-material/Apartment';
 import MailOutlineIcon from '@mui/icons-material/MailOutline';
 import CloseIcon from '@mui/icons-material/Close';
 import DashboardIcon from '@mui/icons-material/Dashboard';
+import FolderOpenIcon from '@mui/icons-material/FolderOpen';
+import WarningIcon from '@mui/icons-material/Warning';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import FlagIcon from '@mui/icons-material/Flag';
 import AppSidebar from '../common/AppSidebar';
 import './Dashboard.css';
 
@@ -28,8 +34,97 @@ const Dashboard = () => {
       id: 'dashboard2',
       name: 'Dashboard 2',
       src: 'https://prod-apsoutheast-b.online.tableau.com/t/hoho147-967601ea99/views/Dashboard_Templatev0_2/Dashboard2'
+    },
+    {
+      id: 'pendingCasesSummary',
+      name: 'My Cases',
+      src: null // Not a Tableau dashboard
     }
   ];
+  
+  // Pending cases (updated to follow CaseSearch.jsx mock data structure)
+  const [pendingCases, setPendingCases] = useState([
+    { 
+      id: 'CASE001', 
+      fileNo: 'EMSD/EEO/BC/19/01/06',
+      caseEngineer: 'E/EEB2/1',
+      status: 'In Progress', 
+      caseType: 'REA Registration',
+      createdDate: '2023-11-20',
+      lastUpdated: '2023-11-25',
+      tasks: [
+        { 
+          id: 1, 
+          name: 'Prepare / Issue Acknowledgement Letter Annex F1', 
+          status: 'Pending', 
+          actionBy: {
+            sto: 'STO/EEB5/1 (Tom)',
+            engineer: 'E/EEB2/1 (Ken)',
+            seniorEngineer: null,
+            bsi: null,
+            to: null,
+            sbsi: null
+          }, 
+          dueDate: '2023-12-01',
+          priority: 'High'
+        },
+        { 
+          id: 2, 
+          name: 'Review Submitted Documents', 
+          status: 'In Progress', 
+          actionBy: {
+            sto: null,
+            engineer: 'E/EEB3/2 (Amy)',
+            seniorEngineer: 'SE/EEB1/1 (David)',
+            bsi: 'BSI/EEB2/2 (Sarah)',
+            to: null,
+            sbsi: null
+          }, 
+          dueDate: '2023-12-05',
+          priority: 'Medium'
+        }
+      ]
+    },
+    { 
+      id: 'CASE002', 
+      fileNo: 'EMSD/EEO/BC/19/01/07',
+      caseEngineer: 'E/EEB3/2',
+      status: 'Pending', 
+      caseType: 'REA Renewal',
+      createdDate: '2023-11-18',
+      lastUpdated: '2023-11-22',
+      tasks: [
+        { 
+          id: 3, 
+          name: 'Checklist for General Checking of Application Submission', 
+          status: 'Pending', 
+          actionBy: {
+            sto: null,
+            engineer: null,
+            seniorEngineer: null,
+            bsi: null,
+            to: 'TO/EEB4/1 (Ben)',
+            sbsi: 'SBSI/EEB3/1 (Ceci)'
+          }, 
+          dueDate: '2023-12-03',
+          priority: 'Low' 
+        }
+      ]
+    },
+    { 
+      id: 'CASE005', 
+      fileNo: 'EMSD/EEO/BC/19/02/01',
+      caseEngineer: 'E/EEB3/5',
+      status: 'In Progress', 
+      caseType: 'REA Change',
+      createdDate: '2023-11-22',
+      lastUpdated: '2023-11-28',
+      tasks: [
+        { id: 7, name: 'Technical Assessment', status: 'In Progress', actionBy: { sto: 'STO/EEB5/2' }, dueDate: '2023-12-10' },
+        { id: 8, name: 'Compliance Verification', status: 'Pending', actionBy: { sto: 'STO/EEB5/2' }, dueDate: '2023-12-15' }
+      ]
+    }
+  ]);
   
   const [inboxMessages, setInboxMessages] = useState([
     {
@@ -54,6 +149,10 @@ const Dashboard = () => {
       status: "unread"
     }
   ]);
+
+  // Add pagination state for My Cases panel
+  const [casesPage, setCasesPage] = useState(1);
+  const casesPerPage = 5;
 
   useEffect(() => {
     // Load Tableau script
@@ -87,7 +186,32 @@ const Dashboard = () => {
     });
   };
 
+  // Get status chip color based on status (from CaseSearch.jsx)
+  const getStatusChipColor = (status) => {
+    switch (status) {
+      case 'In Progress':
+        return 'primary'; // blue
+      case 'Pending':
+        return 'warning'; // orange
+      case 'Closed':
+        return 'success'; // green
+      case 'Completed': // For backward compatibility
+        return 'success'; // green
+      case 'Rejected':
+        return 'error'; // red
+      default:
+        return 'default';
+    }
+  };
+
   const unreadCount = inboxMessages.filter(msg => msg.status === 'unread').length;
+
+  // Calculate paginated cases
+  const getPaginatedCases = () => {
+    const startIndex = (casesPage - 1) * casesPerPage;
+    const endIndex = startIndex + casesPerPage;
+    return pendingCases.slice(startIndex, endIndex);
+  };
 
   return (
     <Box sx={{ display: 'flex', height: '100vh' }}>
@@ -122,8 +246,8 @@ const Dashboard = () => {
                 minWidth: 'max-content'
               }}>
                 <DashboardIcon color="primary" sx={{ mr: 1 }} />
-                <Typography variant="h6" sx={{ fontWeight: 500, whiteSpace: 'nowrap' }}>
-                  Select Dashboards:
+                <Typography variant="subtitle1" sx={{ fontWeight: 500, whiteSpace: 'nowrap', fontSize: '0.875rem' }}>
+                  My Panels:
                 </Typography>
               </Box>
               
@@ -138,6 +262,7 @@ const Dashboard = () => {
                     sx={{ 
                       fontWeight: selectedDashboards.includes(dashboard.id) ? 500 : 400,
                       px: 1,
+                      fontSize: '0.75rem',
                       '&:hover': {
                         background: selectedDashboards.includes(dashboard.id) ? undefined : '#f0f0f0'
                       }
@@ -148,9 +273,147 @@ const Dashboard = () => {
             </Box>
           </Paper>
 
-          {/* Tableau Dashboards */}
+          {/* Tableau Dashboards and Pending Case Summary */}
           {selectedDashboards.map(dashboardId => {
             const dashboard = availableDashboards.find(d => d.id === dashboardId);
+            if (dashboard.id === 'pendingCasesSummary') {
+              // Render My Cases panel here
+              return (
+                <Paper 
+                  key={dashboard.id} 
+                  sx={{ 
+                    mb: 3, 
+                    borderRadius: 2, 
+                    overflow: 'hidden',
+                    boxShadow: '0 2px 10px rgba(0,0,0,0.08)'
+                  }}
+                >
+                  <Box 
+                    sx={{ 
+                      p: 1.5, 
+                      bgcolor: 'primary.main', 
+                      color: 'white',
+                      display: 'flex',
+                      alignItems: 'center'
+                    }}
+                  >
+                    <FolderOpenIcon sx={{ mr: 1.5 }} />
+                    <Typography 
+                      variant="h6" 
+                      sx={{ 
+                        fontSize: '1.1rem', 
+                        fontWeight: 500,
+                        flexGrow: 1
+                      }}
+                    >
+                      My Cases
+                    </Typography>
+                    <Chip 
+                      label={`${pendingCases.length} Cases`} 
+                      size="small" 
+                      sx={{ 
+                        color: 'white',
+                        bgcolor: 'rgba(255,255,255,0.2)',
+                        fontWeight: 500
+                      }} 
+                    />
+                  </Box>
+                  <TableContainer sx={{ maxHeight: 296, overflowY: 'auto' }}>
+                    <Table size="small" aria-label="pending cases">
+                      <TableHead>
+                        <TableRow sx={{ bgcolor: '#f5f7fa' }}>
+                          <TableCell><Typography variant="subtitle2">Case ID</Typography></TableCell>
+                          <TableCell><Typography variant="subtitle2">Type</Typography></TableCell>
+                          <TableCell><Typography variant="subtitle2">Status</Typography></TableCell>
+                          <TableCell><Typography variant="subtitle2">Due Date</Typography></TableCell>
+                          <TableCell><Typography variant="subtitle2">Tasks</Typography></TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {getPaginatedCases().map((caseItem) => {
+                          // Summarize task statuses
+                          const taskStatusSummary = caseItem.tasks
+                            ? Object.entries(
+                                caseItem.tasks.reduce((acc, task) => {
+                                  acc[task.status] = (acc[task.status] || 0) + 1;
+                                  return acc;
+                                }, {})
+                              )
+                            : [];
+                          return (
+                            <TableRow 
+                              key={caseItem.id}
+                              hover
+                              sx={{ 
+                                '&:hover': { 
+                                  cursor: 'pointer',
+                                  backgroundColor: 'rgba(0, 0, 0, 0.04)' 
+                                }
+                              }}
+                            >
+                              <TableCell>
+                                <Typography variant="body2" sx={{ fontWeight: 500 }}>{caseItem.id}</Typography>
+                              </TableCell>
+                              <TableCell>
+                                <Typography variant="body2">{caseItem.caseType}</Typography>
+                              </TableCell>
+                              <TableCell>
+                                <Chip 
+                                  label={caseItem.status} 
+                                  size="small" 
+                                  color={getStatusChipColor(caseItem.status)}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Typography variant="body2">{caseItem.dueDate}</Typography>
+                              </TableCell>
+                              <TableCell>
+                                <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
+                                  {taskStatusSummary.length > 0 ? (
+                                    <>
+                                      <Chip
+                                        size="small"
+                                        label={`${caseItem.tasks.length} ${caseItem.tasks.length === 1 ? 'Task' : 'Tasks'}`}
+                                        color="primary"
+                                        sx={{ fontWeight: 'medium' }}
+                                      />
+                                      {taskStatusSummary.map(([status, count]) => (
+                                        <Chip
+                                          key={status}
+                                          label={`${status}: ${count}`}
+                                          size="small"
+                                          color={getStatusChipColor(status)}
+                                          variant="outlined"
+                                          sx={{ fontSize: '0.7rem', height: '20px' }}
+                                        />
+                                      ))}
+                                    </>
+                                  ) : (
+                                    <Typography variant="body2" color="text.secondary">No tasks</Typography>
+                                  )}
+                                </Box>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                  
+                  {/* Pagination for My Cases panel */}
+                  <Box sx={{ p: 1, display: 'flex', justifyContent: 'center', borderTop: '1px solid #eee' }}>
+                    <Pagination 
+                      count={Math.ceil(pendingCases.length / casesPerPage)} 
+                      page={casesPage} 
+                      onChange={(event, newPage) => setCasesPage(newPage)} 
+                      color="primary" 
+                      size="small"
+                    />
+                  </Box>
+                </Paper>
+              );
+            }
+            // Tableau dashboards
             return (
               <Paper 
                 key={dashboard.id} 
