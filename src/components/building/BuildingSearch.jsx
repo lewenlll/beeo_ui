@@ -20,7 +20,9 @@ import {
   Tooltip,
   IconButton,
   ListItemIcon,
-  Collapse
+  Collapse,
+  Switch,
+  FormControlLabel
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import SearchIcon from '@mui/icons-material/Search';
@@ -34,6 +36,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import LayersIcon from '@mui/icons-material/Layers';
 import BreadcrumbNav from '../common/BreadcrumbNav';
 import AppSidebar from '../common/AppSidebar';
 import Map from '@arcgis/core/Map';
@@ -48,6 +51,8 @@ import Expand from '@arcgis/core/widgets/Expand';
 import Legend from '@arcgis/core/widgets/Legend';
 import Basemap from '@arcgis/core/Basemap';
 import VectorTileLayer from '@arcgis/core/layers/VectorTileLayer';
+import MapImageLayer from '@arcgis/core/layers/MapImageLayer';
+import LayerList from '@arcgis/core/widgets/LayerList';
 import './BuildingSearch.css';
 
 // Mock data for initial development
@@ -224,6 +229,8 @@ const BuildingSearch = () => {
   const abortControllerRef = useRef(null); // Initialize as null and create later
   const [suggestedList, setSuggestedList] = useState([]);
   const componentMountedRef = useRef(true);
+  const [lotLayerVisible, setLotLayerVisible] = useState(false);
+  const lotLayerRef = useRef(null);
 
   // Create a safe version of setState that checks if component is still mounted
   const safeSetState = (setter) => (...args) => {
@@ -383,17 +390,12 @@ const BuildingSearch = () => {
             // Create a feature layer with proper renderer for the legend
             const buildingLayer = new FeatureLayer({
               title: "Buildings",
-              source: [], // Empty source, will be populated via graphics
-              fields: [
-                { name: "ObjectID", type: "oid" },
-                { name: "status", type: "string" }
-              ],
-              objectIdField: "ObjectID",
-              geometryType: "point",
-              spatialReference: { wkid: 2326 },
+              url: "https://portal.csdi.gov.hk/server/rest/services/open/landsd_rcd_1637211194312_35158/MapServer/0",
+              outFields: ["*"],
+              objectIdField: "OBJECTID",
               renderer: {
                 type: "unique-value",
-                field: "status",
+                field: "status", // You may want to update this field to match the actual field in the CSDI building layer
                 defaultSymbol: new PictureMarkerSymbol({
                   url: mapIcon,
                   width: "24px",
@@ -428,6 +430,152 @@ const BuildingSearch = () => {
             if (!componentMountedRef.current) return; // Exit if component unmounted
             mapRef.current.add(buildingLayer);
 
+            // Add lot layer from CSDI portal
+            lotLayerRef.current = new MapImageLayer({
+              url: "https://portal.csdi.gov.hk/server/rest/services/open/landsd_rcd_1637217253134_22729/MapServer",
+              title: "Land Lots",
+              visible: lotLayerVisible,
+              opacity: 0.7,
+              sublayers: [
+                {
+                  id: 0,
+                  title: "Land Lots",
+                  outFields: ["OBJECTID", "PRN", "LOTCODE", "LOTNO", "LOTNAME", "SURVEYAREA", "AREAUNIT"],
+                  popupTemplate: {
+                    title: "Land Lot Information",
+                    outFields: ["*"],
+                    content: function(feature) {
+                      // Get the feature attributes
+                      const attributes = feature.graphic.attributes;
+
+                      // Create a div element to hold our content
+                      const div = document.createElement("div");
+                      
+                      // Create a loading indicator
+                      const loadingDiv = document.createElement("div");
+                      loadingDiv.innerHTML = "<div style='text-align: center; padding: 20px;'><b>Loading related data...</b></div>";
+                      div.appendChild(loadingDiv);
+                      
+                      // Create the main content div (initially empty)
+                      const contentDiv = document.createElement("div");
+                      div.appendChild(contentDiv);
+                      
+                      // Show basic information immediately
+                      contentDiv.innerHTML = `
+                        <table class="esri-widget__table">
+                          <tr><th>Object ID</th><td>${attributes.OBJECTID}</td></tr>
+                          <tr><th>Lot Code</th><td>${attributes.LOTCODE || "N/A"}</td></tr>
+                          <tr><th>Lot No</th><td>${attributes.LOTNO || "N/A"}</td></tr>
+                          <tr><th>Lot Name</th><td>${attributes.LOTNAME || "N/A"}</td></tr>
+                          <tr><th>Area</th><td>${attributes.SURVEYAREA || "N/A"} ${attributes.AREAUNIT || ""}</td></tr>
+                          <tr><th>Property Reference Number</th><td>${attributes.PRN || "N/A"}</td></tr>
+                        </table>
+                        <div id="relatedInfo"></div>
+                      `;
+                      
+                      // Now fetch the related records from LOTLANDINFO table
+                      const prn = attributes.PRN;
+                      
+                      if (prn) {
+                        // Query the related LOTLANDINFO table (index 1 in the MapServer)
+                        // We're using a simple query based on PRN which should be the relationship key
+                        const relatedUrl = "https://portal.csdi.gov.hk/server/rest/services/open/landsd_rcd_1637217253134_22729/MapServer/1";
+                        
+                        fetch(`${relatedUrl}/query?where=PRN='${prn}'&outFields=*&f=json`)
+                          .then(response => response.json())
+                          .then(result => {
+                            // Remove loading indicator
+                            div.removeChild(loadingDiv);
+                            
+                            // Handle the related data
+                            const relatedInfoDiv = contentDiv.querySelector("#relatedInfo");
+                            
+                            if (result.features && result.features.length > 0) {
+                              const relatedAttributes = result.features[0].attributes;
+                              
+                              // Add the related information to our content
+                              let relatedHTML = `
+                                <h3 style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px;">Detailed Information</h3>
+                                <table class="esri-widget__table">
+                              `;
+                              
+                              // Add LOTDISPLAYNAME if available
+                              if (relatedAttributes.LOTDISPLAYNAME) {
+                                relatedHTML += `<tr><th>Lot Display Name</th><td>${relatedAttributes.LOTDISPLAYNAME}</td></tr>`;
+                              }
+                              
+                              // Add LOTNUMBER if available
+                              if (relatedAttributes.LOTNUMBER) {
+                                relatedHTML += `<tr><th>Lot Number</th><td>${relatedAttributes.LOTNUMBER}</td></tr>`;
+                              }
+                              
+                              // Add other useful fields from LOTLANDINFO
+                              const additionalFields = [
+                                { field: "LANDCLASS", label: "Land Class" },
+                                { field: "AREAFIGURE", label: "Area Figure" },
+                                { field: "VALIDFROM", label: "Valid From" },
+                                { field: "VALIDTO", label: "Valid To" }
+                              ];
+                              
+                              additionalFields.forEach(item => {
+                                if (relatedAttributes[item.field] !== undefined && relatedAttributes[item.field] !== null) {
+                                  // Format dates if needed
+                                  let value = relatedAttributes[item.field];
+                                  if (item.field === "VALIDFROM" || item.field === "VALIDTO") {
+                                    // Convert from epoch milliseconds if it's a number
+                                    if (typeof value === "number") {
+                                      value = new Date(value).toLocaleDateString();
+                                    }
+                                  }
+                                  relatedHTML += `<tr><th>${item.label}</th><td>${value}</td></tr>`;
+                                }
+                              });
+                              
+                              relatedHTML += `</table>`;
+                              relatedInfoDiv.innerHTML = relatedHTML;
+                            } else {
+                              relatedInfoDiv.innerHTML = `
+                                <div style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px;">
+                                  <p>No related detail information found for this lot.</p>
+                                </div>
+                              `;
+                            }
+                          })
+                          .catch(error => {
+                            // Remove loading indicator
+                            div.removeChild(loadingDiv);
+                            
+                            // Show error message
+                            const relatedInfoDiv = contentDiv.querySelector("#relatedInfo");
+                            relatedInfoDiv.innerHTML = `
+                              <div style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px; color: #d9534f;">
+                                <p>Error loading related information: ${error.message}</p>
+                              </div>
+                            `;
+                            console.error("Error fetching related data:", error);
+                          });
+                      } else {
+                        // No PRN available to query related data
+                        div.removeChild(loadingDiv);
+                        
+                        const relatedInfoDiv = contentDiv.querySelector("#relatedInfo");
+                        relatedInfoDiv.innerHTML = `
+                          <div style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px;">
+                            <p>No Property Reference Number available to fetch detailed information.</p>
+                          </div>
+                        `;
+                      }
+                      
+                      return div;
+                    }
+                  }
+                }
+              ]
+            });
+            
+            if (!componentMountedRef.current) return; // Exit if component unmounted
+            mapRef.current.add(lotLayerRef.current);
+
             // Add legend widget with proper configuration - Wrap with try/catch
             try {
               if (!componentMountedRef.current) return; // Exit if component unmounted
@@ -436,10 +584,16 @@ const BuildingSearch = () => {
               try {
                 legendRef.current = new Legend({
                   view: mapViewRef.current,
-                  layerInfos: [{
-                    layer: buildingLayer,
-                    title: "Building Registration Status"
-                  }]
+                  layerInfos: [
+                    {
+                      layer: buildingLayer,
+                      title: "Building Registration Status"
+                    },
+                    {
+                      layer: lotLayerRef.current,
+                      title: "Land Lots"
+                    }
+                  ]
                 });
               } catch (legendError) {
                 if (legendError.name !== 'AbortError' && componentMountedRef.current) {
@@ -492,6 +646,38 @@ const BuildingSearch = () => {
               // Silently handle errors during legend creation
               if (error.name !== 'AbortError' && componentMountedRef.current) {
                 console.error('Error creating legend widget:', error);
+              }
+            }
+
+            // Add layer list widget
+            try {
+              if (!componentMountedRef.current) return; // Exit if component unmounted
+              
+              const layerListWidget = new LayerList({
+                view: mapViewRef.current,
+                listItemCreatedFunction: (event) => {
+                  // Add additional actions or styling to layer list items
+                  const item = event.item;
+                  if (item.layer.title === "Land Lots") {
+                    item.panel = {
+                      content: "panel",
+                      open: false
+                    };
+                  }
+                }
+              });
+              
+              const layerListExpand = new Expand({
+                view: mapViewRef.current,
+                content: layerListWidget,
+                expandIcon: "layers",
+                expandTooltip: "Layer List"
+              });
+              
+              mapViewRef.current.ui.add(layerListExpand, "top-right");
+            } catch (layerListError) {
+              if (layerListError.name !== 'AbortError' && componentMountedRef.current) {
+                console.error('Error creating layer list widget:', layerListError);
               }
             }
           } catch (viewError) {
@@ -626,6 +812,18 @@ const BuildingSearch = () => {
       }
     };
   }, []);
+
+  // Effect to toggle lot layer visibility when state changes
+  useEffect(() => {
+    if (lotLayerRef.current) {
+      lotLayerRef.current.visible = lotLayerVisible;
+    }
+  }, [lotLayerVisible]);
+
+  // Toggle lot layer visibility
+  const handleLotLayerToggle = (event) => {
+    setLotLayerVisible(event.target.checked);
+  };
 
   // --- Search Input Handler with debounce for autocomplete ---
   const handleInputChange = (event) => {
@@ -1249,6 +1447,27 @@ const BuildingSearch = () => {
               </Tooltip>
             </Grid>
           </Grid>
+        </Paper>
+
+        {/* Layer Controls Panel */}
+        <Paper sx={{ mt: 2, p: 2, mb: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <LayersIcon sx={{ mr: 2, color: 'primary.main' }} />
+            <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+              Map Layers
+            </Typography>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={lotLayerVisible}
+                  onChange={handleLotLayerToggle}
+                  color="primary"
+                />
+              }
+              label="Show Land Lots"
+              labelPlacement="start"
+            />
+          </Box>
         </Paper>
 
         {/* Bookmarks Panel */}
