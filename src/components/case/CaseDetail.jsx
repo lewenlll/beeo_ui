@@ -624,9 +624,9 @@ const CaseDetail = () => {
                       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold', fontSize: '0.7rem', mb: 0.5 }}>Case No.</Typography>
                       <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{caseData.caseId}</Typography>
                     </Grid>
-                    <Grid item xs={12} sm={6} md={3} lg={2}>
+                    <Grid item xs={12} sm={6} md={4} lg={3}>
                       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold', fontSize: '0.7rem', mb: 0.5 }}>File No.</Typography>
-                      <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>EMSD/EEO/BC/19/01/06</Typography>
+                      <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>EMSD/EEO/BC/19/01/06</Typography>
                     </Grid>
                     <Grid item xs={12} sm={6} md={3} lg={2}>
                       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold', fontSize: '0.7rem', mb: 0.5 }}>Subject Engineer</Typography>

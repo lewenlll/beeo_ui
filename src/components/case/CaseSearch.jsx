@@ -405,6 +405,8 @@ const CaseSearch = () => {
   const [pendingSearch, setPendingSearch] = useState(false);
   // Handle search function (refactored to always use latest state)
   const handleSearch = () => {
+    // Clear active saved search when user manually searches
+    setActiveSavedSearch(null);
     setPendingSearch(true);
     setPage(1); // Reset to first page when searching
   };
@@ -518,6 +520,7 @@ const CaseSearch = () => {
     setSearchCreatedDateTo('');
     setShowTaskFilters(false);
     setSearchResults(mockCases);
+    setActiveSavedSearch(null); // Clear active saved search when filters are reset
   };
   
   // Remove a keyword chip
@@ -533,6 +536,7 @@ const CaseSearch = () => {
   const [bookmarkDialogOpen, setBookmarkDialogOpen] = useState(false);
   const [bookmarkName, setBookmarkName] = useState('');
   const [editingBookmark, setEditingBookmark] = useState(null);
+  const [activeSavedSearch, setActiveSavedSearch] = useState(null);
 
   // Save current search criteria
   const handleSaveSearch = () => {
@@ -602,6 +606,9 @@ const CaseSearch = () => {
     setSearchTaskActionBy(savedSearch.criteria.taskActionBy || '');
     setSearchFileNoTo(savedSearch.criteria.fileNoTo || '');
     setShowTaskFilters(savedSearch.criteria.showTaskFilters || false);
+    
+    // Set the active saved search indicator
+    setActiveSavedSearch(savedSearch.id);
     
     // Execute the search with loaded criteria
     const filteredResults = mockCases.filter(caseItem => {
@@ -871,7 +878,7 @@ const CaseSearch = () => {
                     key={savedSearch.id}
                     label={savedSearch.name}
                     size="small"
-                    variant="outlined"
+                    variant={activeSavedSearch === savedSearch.id ? "filled" : "outlined"}
                     color="primary"
                     onClick={() => handleLoadSavedSearch(savedSearch)}
                     onDelete={savedSearch.isDefault ? undefined : 
@@ -880,7 +887,8 @@ const CaseSearch = () => {
                     sx={{ 
                       height: '24px', 
                       '& .MuiChip-label': { fontSize: '0.75rem' },
-                      '& .MuiChip-deleteIcon': { fontSize: '0.85rem' }
+                      '& .MuiChip-deleteIcon': { fontSize: '0.85rem' },
+                      fontWeight: activeSavedSearch === savedSearch.id ? 500 : 400
                     }}
                   />
                 ))}
@@ -1277,7 +1285,6 @@ const CaseSearch = () => {
                           </Box>
                         </TableCell>
                       ))}
-                      <TableCell align="right" sx={{ fontWeight: 'bold', py: 1 }}>Actions</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -1307,7 +1314,24 @@ const CaseSearch = () => {
                               {expandedRows[caseItem.id] ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
                             </IconButton>
                           </TableCell>
-                          <TableCell sx={{ py: 0.75 }}>{caseItem.id}</TableCell>
+                          <TableCell sx={{ py: 0.75 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              <Typography variant="body2" sx={{ mr: 1 }}>{caseItem.id}</Typography>
+                              <Tooltip title="View Case Details">
+                                <IconButton 
+                                  size="small" 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleViewCase(caseItem.id);
+                                  }}
+                                  color="primary"
+                                  sx={{ ml: 'auto' }}
+                                >
+                                  <VisibilityIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            </Box>
+                          </TableCell>
                           <TableCell sx={{ py: 0.75 }}>{caseItem.fileNo}</TableCell>
                           <TableCell sx={{ py: 0.75 }}>{caseItem.caseType}</TableCell>
                           <TableCell sx={{ py: 0.75 }}>
@@ -1348,20 +1372,6 @@ const CaseSearch = () => {
                             ) : (
                               <Typography variant="body2" color="text.secondary">No tasks</Typography>
                             )}
-                          </TableCell>
-                          <TableCell align="right" sx={{ py: 0.75, pr: 1.5 }} onClick={(e) => e.stopPropagation()}>
-                            <Tooltip title="View Case Details">
-                              <IconButton 
-                                size="small" 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleViewCase(caseItem.id);
-                                }}
-                                color="primary"
-                              >
-                                <VisibilityIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
                           </TableCell>
                         </TableRow>
                         

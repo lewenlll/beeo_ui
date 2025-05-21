@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import {
     Box, Typography, List, ListItem, ListItemIcon, ListItemText, IconButton, Divider, Tooltip, Paper, Fab, Badge, Grow, Chip,
     ToggleButtonGroup, ToggleButton, Stack, Card, CardContent, Container, Table, TableBody, TableCell, TableContainer, 
-    TableHead, TableRow, CircularProgress, Pagination
+    TableHead, TableRow, CircularProgress, Pagination, Button
 } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import HomeIcon from '@mui/icons-material/Home';
 import SearchIcon from '@mui/icons-material/Search';
 import ApartmentIcon from '@mui/icons-material/Apartment';
@@ -15,25 +16,32 @@ import WarningIcon from '@mui/icons-material/Warning';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import FlagIcon from '@mui/icons-material/Flag';
+import VisibilityIcon from '@mui/icons-material/Visibility';
 import AppSidebar from '../common/AppSidebar';
 import './Dashboard.css';
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const [drawerOpen, setDrawerOpen] = useState(true);
   const [inboxExpanded, setInboxExpanded] = useState(false);
   const [selectedDashboards, setSelectedDashboards] = useState(['dashboard1']);
+  
+  // Handler to navigate to case details
+  const handleViewCase = (caseId) => {
+    navigate(`/cases/${caseId}`);
+  };
   
   // Available dashboards
   const availableDashboards = [
     {
       id: 'dashboard1',
       name: 'Dashboard 1',
-      src: 'https://prod-apsoutheast-b.online.tableau.com/t/hoho147-967601ea99/views/Dashboard_Templatev0_2/Dashboard1'
+      src: 'https://public.tableau.com/views/Dashboard_Templatev0_21/SeniorManagement?:language=en[…]sid=&:redirect=auth&:display_count=n&:origin=viz_share_link'
     },
     {
       id: 'dashboard2',
       name: 'Dashboard 2',
-      src: 'https://prod-apsoutheast-b.online.tableau.com/t/hoho147-967601ea99/views/Dashboard_Templatev0_2/Dashboard2'
+      src: 'https://public.tableau.com/views/Dashboard_Templatev0_2-Dashboard2/Dashboard2?:languag[…]sid=&:redirect=auth&:display_count=n&:origin=viz_share_link'
     },
     {
       id: 'pendingCasesSummary',
@@ -273,19 +281,188 @@ const Dashboard = () => {
             </Box>
           </Paper>
 
-          {/* Tableau Dashboards and Pending Case Summary */}
-          {selectedDashboards.map(dashboardId => {
-            const dashboard = availableDashboards.find(d => d.id === dashboardId);
-            if (dashboard.id === 'pendingCasesSummary') {
-              // Render My Cases panel here
+          {/* Dashboard Grid Layout */}
+          <Box 
+            sx={{ 
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: '1fr',                                // 1 column on extra small screens
+                sm: selectedDashboards.length > 1 ? '1fr 1fr' : '1fr',  // 2 columns on small screens if multiple dashboards
+                md: selectedDashboards.length > 2 ? '1fr 1fr 1fr' : (selectedDashboards.length > 1 ? '1fr 1fr' : '1fr') // 3 columns on medium+ screens if needed
+              },
+              gap: 3,
+              width: '100%',
+              flex: 1
+            }}
+          >
+            {/* Tableau Dashboards and Pending Case Summary */}
+            {selectedDashboards.map(dashboardId => {
+              const dashboard = availableDashboards.find(d => d.id === dashboardId);
+              if (dashboard.id === 'pendingCasesSummary') {
+                // Render My Cases panel here
+                return (
+                  <Paper 
+                    key={dashboard.id} 
+                    sx={{ 
+                      borderRadius: 2, 
+                      overflow: 'hidden',
+                      boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
+                      height: '100%',
+                      display: 'flex',
+                      flexDirection: 'column'
+                    }}
+                  >
+                    <Box 
+                      sx={{ 
+                        p: 1.5, 
+                        bgcolor: 'primary.main', 
+                        color: 'white',
+                        display: 'flex',
+                        alignItems: 'center'
+                      }}
+                    >
+                      <FolderOpenIcon sx={{ mr: 1.5 }} />
+                      <Typography 
+                        variant="h6" 
+                        sx={{ 
+                          fontSize: '1.1rem', 
+                          fontWeight: 500,
+                          flexGrow: 1
+                        }}
+                      >
+                        My Cases
+                      </Typography>
+                      <Chip 
+                        label={`${pendingCases.length} Cases`} 
+                        size="small" 
+                        sx={{ 
+                          color: 'white',
+                          bgcolor: 'rgba(255,255,255,0.2)',
+                          fontWeight: 500
+                        }} 
+                      />
+                    </Box>
+                    <TableContainer sx={{ flex: 1, overflowY: 'auto' }}>
+                      <Table size="small" aria-label="pending cases">
+                        <TableHead>
+                          <TableRow sx={{ bgcolor: '#f5f7fa' }}>
+                            <TableCell><Typography variant="subtitle2">Case ID</Typography></TableCell>
+                            <TableCell><Typography variant="subtitle2">Type</Typography></TableCell>
+                            <TableCell><Typography variant="subtitle2">Status</Typography></TableCell>
+                            <TableCell><Typography variant="subtitle2">Due Date</Typography></TableCell>
+                            <TableCell><Typography variant="subtitle2">Tasks</Typography></TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {getPaginatedCases().map((caseItem) => {
+                            // Summarize task statuses
+                            const taskStatusSummary = caseItem.tasks
+                              ? Object.entries(
+                                  caseItem.tasks.reduce((acc, task) => {
+                                    acc[task.status] = (acc[task.status] || 0) + 1;
+                                    return acc;
+                                  }, {})
+                                )
+                              : [];
+                            return (
+                              <TableRow 
+                                key={caseItem.id}
+                                hover
+                                sx={{ 
+                                  '&:hover': { 
+                                    cursor: 'pointer',
+                                    backgroundColor: 'rgba(0, 0, 0, 0.04)' 
+                                  }
+                                }}
+                              >
+                                <TableCell>
+                                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                    <Typography variant="body2" sx={{ fontWeight: 500, mr: 1 }}>{caseItem.id}</Typography>
+                                    <Tooltip title="View Case Details">
+                                      <IconButton
+                                        size="small"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleViewCase(caseItem.id);
+                                        }}
+                                        color="primary"
+                                        sx={{ ml: 'auto' }}
+                                      >
+                                        <VisibilityIcon fontSize="small" />
+                                      </IconButton>
+                                    </Tooltip>
+                                  </Box>
+                                </TableCell>
+                                <TableCell>
+                                  <Typography variant="body2">{caseItem.caseType}</Typography>
+                                </TableCell>
+                                <TableCell>
+                                  <Chip 
+                                    label={caseItem.status} 
+                                    size="small" 
+                                    color={getStatusChipColor(caseItem.status)}
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <Typography variant="body2">{caseItem.dueDate}</Typography>
+                                </TableCell>
+                                <TableCell>
+                                  <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
+                                    {taskStatusSummary.length > 0 ? (
+                                      <>
+                                        <Chip
+                                          size="small"
+                                          label={`${caseItem.tasks.length} ${caseItem.tasks.length === 1 ? 'Task' : 'Tasks'}`}
+                                          color="primary"
+                                          sx={{ fontWeight: 'medium' }}
+                                        />
+                                        {taskStatusSummary.map(([status, count]) => (
+                                          <Chip
+                                            key={status}
+                                            label={`${status}: ${count}`}
+                                            size="small"
+                                            color={getStatusChipColor(status)}
+                                            variant="outlined"
+                                            sx={{ fontSize: '0.7rem', height: '20px' }}
+                                          />
+                                        ))}
+                                      </>
+                                    ) : (
+                                      <Typography variant="body2" color="text.secondary">No tasks</Typography>
+                                    )}
+                                  </Box>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                    
+                    {/* Pagination for My Cases panel */}
+                    <Box sx={{ p: 1, display: 'flex', justifyContent: 'center', borderTop: '1px solid #eee' }}>
+                      <Pagination 
+                        count={Math.ceil(pendingCases.length / casesPerPage)} 
+                        page={casesPage} 
+                        onChange={(event, newPage) => setCasesPage(newPage)} 
+                        color="primary" 
+                        size="small"
+                      />
+                    </Box>
+                  </Paper>
+                );
+              }
+              // Tableau dashboards
               return (
                 <Paper 
                   key={dashboard.id} 
                   sx={{ 
-                    mb: 3, 
                     borderRadius: 2, 
                     overflow: 'hidden',
-                    boxShadow: '0 2px 10px rgba(0,0,0,0.08)'
+                    boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column'
                   }}
                 >
                   <Box 
@@ -297,7 +474,6 @@ const Dashboard = () => {
                       alignItems: 'center'
                     }}
                   >
-                    <FolderOpenIcon sx={{ mr: 1.5 }} />
                     <Typography 
                       variant="h6" 
                       sx={{ 
@@ -306,158 +482,24 @@ const Dashboard = () => {
                         flexGrow: 1
                       }}
                     >
-                      My Cases
+                      {dashboard.name}
                     </Typography>
-                    <Chip 
-                      label={`${pendingCases.length} Cases`} 
-                      size="small" 
-                      sx={{ 
-                        color: 'white',
-                        bgcolor: 'rgba(255,255,255,0.2)',
-                        fontWeight: 500
-                      }} 
-                    />
                   </Box>
-                  <TableContainer sx={{ maxHeight: 296, overflowY: 'auto' }}>
-                    <Table size="small" aria-label="pending cases">
-                      <TableHead>
-                        <TableRow sx={{ bgcolor: '#f5f7fa' }}>
-                          <TableCell><Typography variant="subtitle2">Case ID</Typography></TableCell>
-                          <TableCell><Typography variant="subtitle2">Type</Typography></TableCell>
-                          <TableCell><Typography variant="subtitle2">Status</Typography></TableCell>
-                          <TableCell><Typography variant="subtitle2">Due Date</Typography></TableCell>
-                          <TableCell><Typography variant="subtitle2">Tasks</Typography></TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {getPaginatedCases().map((caseItem) => {
-                          // Summarize task statuses
-                          const taskStatusSummary = caseItem.tasks
-                            ? Object.entries(
-                                caseItem.tasks.reduce((acc, task) => {
-                                  acc[task.status] = (acc[task.status] || 0) + 1;
-                                  return acc;
-                                }, {})
-                              )
-                            : [];
-                          return (
-                            <TableRow 
-                              key={caseItem.id}
-                              hover
-                              sx={{ 
-                                '&:hover': { 
-                                  cursor: 'pointer',
-                                  backgroundColor: 'rgba(0, 0, 0, 0.04)' 
-                                }
-                              }}
-                            >
-                              <TableCell>
-                                <Typography variant="body2" sx={{ fontWeight: 500 }}>{caseItem.id}</Typography>
-                              </TableCell>
-                              <TableCell>
-                                <Typography variant="body2">{caseItem.caseType}</Typography>
-                              </TableCell>
-                              <TableCell>
-                                <Chip 
-                                  label={caseItem.status} 
-                                  size="small" 
-                                  color={getStatusChipColor(caseItem.status)}
-                                />
-                              </TableCell>
-                              <TableCell>
-                                <Typography variant="body2">{caseItem.dueDate}</Typography>
-                              </TableCell>
-                              <TableCell>
-                                <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
-                                  {taskStatusSummary.length > 0 ? (
-                                    <>
-                                      <Chip
-                                        size="small"
-                                        label={`${caseItem.tasks.length} ${caseItem.tasks.length === 1 ? 'Task' : 'Tasks'}`}
-                                        color="primary"
-                                        sx={{ fontWeight: 'medium' }}
-                                      />
-                                      {taskStatusSummary.map(([status, count]) => (
-                                        <Chip
-                                          key={status}
-                                          label={`${status}: ${count}`}
-                                          size="small"
-                                          color={getStatusChipColor(status)}
-                                          variant="outlined"
-                                          sx={{ fontSize: '0.7rem', height: '20px' }}
-                                        />
-                                      ))}
-                                    </>
-                                  ) : (
-                                    <Typography variant="body2" color="text.secondary">No tasks</Typography>
-                                  )}
-                                </Box>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                  
-                  {/* Pagination for My Cases panel */}
-                  <Box sx={{ p: 1, display: 'flex', justifyContent: 'center', borderTop: '1px solid #eee' }}>
-                    <Pagination 
-                      count={Math.ceil(pendingCases.length / casesPerPage)} 
-                      page={casesPage} 
-                      onChange={(event, newPage) => setCasesPage(newPage)} 
-                      color="primary" 
-                      size="small"
-                    />
-                  </Box>
+                  <div className="tableau-container">
+                    <tableau-viz
+                      id={`tableau-viz-${dashboard.id}`}
+                      src={dashboard.src}
+                      device="desktop"
+                      width="100%"
+                      height="100%"
+                      hide-tabs
+                      toolbar="bottom"
+                    ></tableau-viz>
+                  </div>
                 </Paper>
               );
-            }
-            // Tableau dashboards
-            return (
-              <Paper 
-                key={dashboard.id} 
-                sx={{ 
-                  mb: 3, 
-                  borderRadius: 2, 
-                  overflow: 'hidden',
-                  boxShadow: '0 2px 10px rgba(0,0,0,0.08)'
-                }}
-              >
-                <Box 
-                  sx={{ 
-                    p: 1.5, 
-                    bgcolor: 'primary.main', 
-                    color: 'white',
-                    display: 'flex',
-                    alignItems: 'center'
-                  }}
-                >
-                  <Typography 
-                    variant="h6" 
-                    sx={{ 
-                      fontSize: '1.1rem', 
-                      fontWeight: 500,
-                      flexGrow: 1
-                    }}
-                  >
-                    {dashboard.name}
-                  </Typography>
-                </Box>
-                <div className="tableau-container">
-                  <tableau-viz
-                    id={`tableau-viz-${dashboard.id}`}
-                    src={dashboard.src}
-                    device="desktop"
-                    width="100%"
-                    height="600px"
-                    hide-tabs
-                    toolbar="bottom"
-                  ></tableau-viz>
-                </div>
-              </Paper>
-            );
-          })}
+            })}
+          </Box>
         </div>
 
         {/* Floating Inbox Button */}

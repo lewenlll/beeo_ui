@@ -5,7 +5,6 @@ import {
   Button,
   Paper,
   Typography,
-  Container,
   List,
   ListItem,
   ListItemText,
@@ -21,23 +20,27 @@ import {
   IconButton,
   ListItemIcon,
   Collapse,
+  InputAdornment,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  Fab,
   Switch,
   FormControlLabel
 } from '@mui/material';
-import MenuIcon from '@mui/icons-material/Menu';
 import SearchIcon from '@mui/icons-material/Search';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
-import InfoIcon from '@mui/icons-material/Info';
 import BookmarkIcon from '@mui/icons-material/Bookmark';
 import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
 import BookmarksIcon from '@mui/icons-material/Bookmarks';
 import DeleteIcon from '@mui/icons-material/Delete';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import LayersIcon from '@mui/icons-material/Layers';
-import BreadcrumbNav from '../common/BreadcrumbNav';
+import EditIcon from '@mui/icons-material/Edit';
+import MapIcon from '@mui/icons-material/Map';
 import AppSidebar from '../common/AppSidebar';
 import Map from '@arcgis/core/Map';
 import MapView from '@arcgis/core/views/MapView';
@@ -226,11 +229,19 @@ const BuildingSearch = () => {
   const legendRef = useRef(null);
   const searchTimeoutRef = useRef(null);
   const searchControllerRef = useRef(null);
-  const abortControllerRef = useRef(null); // Initialize as null and create later
+  const abortControllerRef = useRef(null);
   const [suggestedList, setSuggestedList] = useState([]);
   const componentMountedRef = useRef(true);
   const [lotLayerVisible, setLotLayerVisible] = useState(false);
   const lotLayerRef = useRef(null);
+  
+  // New state variables for bookmark functionality
+  const [bookmarkDialogOpen, setBookmarkDialogOpen] = useState(false);
+  const [bookmarkName, setBookmarkName] = useState('');
+  const [editingBookmark, setEditingBookmark] = useState(null);
+  const [showBookmarkedBuildingsLayer, setShowBookmarkedBuildingsLayer] = useState(false);
+  const [deleteBookmarkDialogOpen, setDeleteBookmarkDialogOpen] = useState(false);
+  const [bookmarkToDelete, setBookmarkToDelete] = useState(null);
 
   // Create a safe version of setState that checks if component is still mounted
   const safeSetState = (setter) => (...args) => {
@@ -257,12 +268,15 @@ const BuildingSearch = () => {
     } catch (error) {
       console.error('Error loading bookmarks from localStorage:', error);
     }
-  }, []);
+  }, [safeSetBookmarks]);
 
-  // Save bookmarks to localStorage whenever they change
+  // Modify the useEffect for saving bookmarks to localStorage to ensure they persist properly
   useEffect(() => {
-    if (bookmarks.length > 0 || localStorage.getItem('buildingBookmarks')) {
+    if (bookmarks && bookmarks.length > 0) {
       localStorage.setItem('buildingBookmarks', JSON.stringify(bookmarks));
+    } else if (bookmarks && bookmarks.length === 0 && localStorage.getItem('buildingBookmarks')) {
+      // Only clear storage if bookmarks were explicitly cleared
+      localStorage.removeItem('buildingBookmarks');
     }
   }, [bookmarks]);
 
@@ -284,23 +298,49 @@ const BuildingSearch = () => {
     return building.id;
   };
 
+  // Function to open bookmark dialog for a building
+  const openBookmarkDialog = (building, isEditing = false) => {
+    // Create a unique ID that differentiates buildings with the same name
+    const uniqueId = getUniqueId(building);
+    
+    // Set the building object with uniqueId
+    const buildingWithUniqueId = { ...building, uniqueId };
+    
+    if (isEditing) {
+      // Find the existing bookmark
+      const existingBookmark = bookmarks.find(b => getUniqueId(b) === uniqueId);
+      if (existingBookmark) {
+        setBookmarkName(existingBookmark.customName || existingBookmark.name || '');
+        setEditingBookmark(existingBookmark);
+      }
+    } else {
+      // Default name for new bookmark
+      setBookmarkName(building.name || 'Building Bookmark');
+      setEditingBookmark(null);
+    }
+    
+    // Store the building data for the bookmark dialog
+    sessionStorage.setItem('bookmarkBuilding', JSON.stringify(buildingWithUniqueId));
+    
+    // Open the dialog
+    setBookmarkDialogOpen(true);
+  };
+
   // Function to toggle bookmark status
   const toggleBookmark = (building) => {
     // Create a unique ID that differentiates buildings with the same name
     const uniqueId = getUniqueId(building);
     
-    // Add uniqueId to the building object for future reference
-    const buildingWithUniqueId = { ...building, uniqueId };
-    
     // Check if building is already bookmarked
     const isAlreadyBookmarked = bookmarks.some(b => getUniqueId(b) === uniqueId);
     
     if (isAlreadyBookmarked) {
-      // Remove from bookmarks
-      safeSetBookmarks(bookmarks.filter(b => getUniqueId(b) !== uniqueId));
+      // If bookmarked, open confirmation dialog for deletion
+      setBookmarkToDelete(building);
+      setDeleteBookmarkDialogOpen(true);
     } else {
-      // Add to bookmarks
-      safeSetBookmarks([...bookmarks, buildingWithUniqueId]);
+      // If not bookmarked, open dialog to add bookmark with name
+      openBookmarkDialog(building, false);
     }
   };
 
@@ -321,11 +361,187 @@ const BuildingSearch = () => {
   
   // Function to clear all bookmarks
   const clearAllBookmarks = () => {
+    // Create a new empty array to ensure state update
     safeSetBookmarks([]);
     localStorage.removeItem('buildingBookmarks');
+    
+    // Also update map if layer is visible
+    if (showBookmarkedBuildingsLayer) {
+      setTimeout(() => {
+        displayBookmarkedBuildingsOnMap([]);
+      }, 300);
+    }
+    
+    // Close the delete dialog
+    setDeleteBookmarkDialogOpen(false);
   };
 
+  // Handle saving bookmark from dialog
+  const handleConfirmBookmark = () => {
+    // Get the building data from session storage
+    const buildingData = JSON.parse(sessionStorage.getItem('bookmarkBuilding'));
+    
+    if (!buildingData) {
+      setBookmarkDialogOpen(false);
+      return;
+    }
+    
+    if (editingBookmark) {
+      // Update existing bookmark
+      const updatedBookmarks = bookmarks.map(bookmark => {
+        if (getUniqueId(bookmark) === getUniqueId(editingBookmark)) {
+          return { 
+            ...bookmark, 
+            customName: bookmarkName 
+          };
+        }
+        return bookmark;
+      });
+      
+      safeSetBookmarks(updatedBookmarks);
+    } else {
+      // Add new bookmark with custom name
+      const newBookmark = {
+        ...buildingData,
+        customName: bookmarkName
+      };
+      safeSetBookmarks([...bookmarks, newBookmark]);
+    }
+    
+    setBookmarkDialogOpen(false);
+    sessionStorage.removeItem('bookmarkBuilding');
+    
+    // If bookmark layer is visible, update it
+    if (showBookmarkedBuildingsLayer) {
+      setTimeout(() => {
+        displayBookmarkedBuildingsOnMap([...bookmarks, buildingData]);
+      }, 300);
+    }
+  };
+
+  // Function to edit a bookmark
+  const editBookmark = (building) => {
+    openBookmarkDialog(building, true);
+  };
+
+  // Function to delete bookmark after confirmation
+  const handleDeleteBookmark = () => {
+    if (bookmarkToDelete) {
+      const uniqueId = getUniqueId(bookmarkToDelete);
+      const updatedBookmarks = bookmarks.filter(b => getUniqueId(b) !== uniqueId);
+      safeSetBookmarks(updatedBookmarks);
+      
+      // Update bookmark layer if visible
+      if (showBookmarkedBuildingsLayer) {
+        setTimeout(() => {
+          displayBookmarkedBuildingsOnMap(updatedBookmarks);
+        }, 300);
+      }
+    }
+    setDeleteBookmarkDialogOpen(false);
+    setBookmarkToDelete(null);
+  };
+
+  // Function to display all bookmarked buildings on map
+  const displayBookmarkedBuildingsOnMap = (bookmarksToShow = null) => {
+    if (!mapViewRef.current || !componentMountedRef.current) return;
+    
+    // Use provided bookmarks or current state
+    const bmList = bookmarksToShow || bookmarks;
+    
+    // Clear existing bookmarked building graphics
+    mapViewRef.current.graphics.removeMany(
+      mapViewRef.current.graphics.filter(g => g.attributes && g.attributes.isBookmarked)
+    );
+    
+    if (!showBookmarkedBuildingsLayer) return;
+    
+    // Add markers for all bookmarks
+    bmList.forEach(building => {
+      if (!building.coordinates || !Array.isArray(building.coordinates) || 
+          building.coordinates.length !== 2 ||
+          isNaN(Number(building.coordinates[0])) ||
+          isNaN(Number(building.coordinates[1]))) {
+        return;
+      }
+      
+      const point = new Point({
+        x: Number(building.coordinates[0]),
+        y: Number(building.coordinates[1]),
+        spatialReference: new SpatialReference({ wkid: 2326 })
+      });
+      
+      // Use a special icon or color for bookmarked buildings
+      const symbol = new PictureMarkerSymbol({
+        url: colorizeIcon(mapIcon, 'green'),
+        width: "32px",
+        height: "32px",
+        yoffset: 16
+      });
+      
+      const displayName = building.customName || building.name || "Bookmarked Building";
+      
+      const graphic = new Graphic({
+        geometry: point,
+        symbol: symbol,
+        attributes: {
+          ...building,
+          isBookmarked: true,
+          displayName: displayName
+        },
+        visible: true,
+        popupTemplate: {
+          title: displayName,
+          content: [
+            {
+              type: "fields",
+              fieldInfos: [
+                { fieldName: "nameZH", label: "Building Name (ZH)" },
+                { fieldName: "address", label: "Address" },
+                { fieldName: "addressZH", label: "Address (ZH)" },
+                { fieldName: "district", label: "District" },
+                { fieldName: "districtZH", label: "District (ZH)" },
+                { fieldName: "geoAddress", label: "GeoAddress" },
+                { fieldName: "latitude", label: "Latitude" },
+                { fieldName: "longitude", label: "Longitude" }
+              ]
+            }
+          ],
+          actions: [
+            {
+              title: "Edit Name",
+              id: "edit-bookmark",
+              className: "esri-icon-edit"
+            }
+          ]
+        }
+      });
+      
+      mapViewRef.current.graphics.add(graphic);
+    });
+    
+    // If we have bookmarks, zoom to show all of them
+    if (bmList.length > 0) {
+      const bookmarkedGraphics = mapViewRef.current.graphics.filter(
+        g => g.attributes && g.attributes.isBookmarked
+      );
+      
+      if (bookmarkedGraphics.length > 0) {
+        mapViewRef.current.goTo(bookmarkedGraphics)
+          .catch(err => console.warn("Zoom failed:", err));
+      }
+    }
+  };
+
+  // Effect to toggle bookmarked buildings layer when state changes
+  useEffect(() => {
+    if (mapViewRef.current && initialLoadComplete) {
+      displayBookmarkedBuildingsOnMap();
+    }
+  }, [showBookmarkedBuildingsLayer, initialLoadComplete]);
+
   // Main initialization effect
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     // Mark component as mounted
     componentMountedRef.current = true;
@@ -384,7 +600,8 @@ const BuildingSearch = () => {
             
             // Add label layer
             mapRef.current.add(new VectorTileLayer({
-              url: mapLabelVTUrl
+              url: mapLabelVTUrl,
+              title: "Map Labels"
             }));
 
             // Create a feature layer with proper renderer for the legend
@@ -393,6 +610,9 @@ const BuildingSearch = () => {
               url: "https://portal.csdi.gov.hk/server/rest/services/open/landsd_rcd_1637211194312_35158/MapServer/0",
               outFields: ["*"],
               objectIdField: "OBJECTID",
+              visible: false, // Set default visibility to false
+              definitionExpression: "1=0", // Initially show no features (empty layer)
+              editable: false, // Explicitly disable editing capabilities
               renderer: {
                 type: "unique-value",
                 field: "status", // You may want to update this field to match the actual field in the CSDI building layer
@@ -820,10 +1040,7 @@ const BuildingSearch = () => {
     }
   }, [lotLayerVisible]);
 
-  // Toggle lot layer visibility
-  const handleLotLayerToggle = (event) => {
-    setLotLayerVisible(event.target.checked);
-  };
+
 
   // --- Search Input Handler with debounce for autocomplete ---
   const handleInputChange = (event) => {
@@ -1025,14 +1242,12 @@ const BuildingSearch = () => {
   };
 
   const handleBuildingSelect = (building) => {
-    console.log('handleBuildingSelect called with:', JSON.stringify(building, null, 2));
     setSelectedBuilding(building);
 
     if (!mapViewRef.current) {
       console.error('mapViewRef.current is null in handleBuildingSelect');
       return;
     }
-    console.log('mapViewRef.current is available');
 
     if (
       !building ||
@@ -1041,10 +1256,9 @@ const BuildingSearch = () => {
       isNaN(Number(building.coordinates[0])) ||
       isNaN(Number(building.coordinates[1]))
     ) {
-      console.error('Invalid building data or coordinates for map centering:', JSON.stringify(building, null, 2));
+      console.error('Invalid building data or coordinates for map centering');
       return;
     }
-    console.log('Building coordinates are valid:', building.coordinates);
 
     const easting = Number(building.coordinates[0]);
     const northing = Number(building.coordinates[1]);
@@ -1055,7 +1269,6 @@ const BuildingSearch = () => {
       y: northing,
       spatialReference: new SpatialReference({ wkid: 2326 })
     });
-    console.log('Created ArcGIS Point:', JSON.stringify(point.toJSON(), null, 2));
 
     // Create marker symbol for selected building (Reverted to PictureMarkerSymbol)
     const selectedSymbol = new PictureMarkerSymbol({
@@ -1064,7 +1277,6 @@ const BuildingSearch = () => {
       height: "32px",
       yoffset: 16
     });
-    console.log('Created PictureMarkerSymbol for selection');
 
     // First, add or update the marker
     // Use GeoAddress as primary identifier, fall back to id when GeoAddress is not available
@@ -1077,14 +1289,11 @@ const BuildingSearch = () => {
     );
 
     if (graphic) {
-      console.log('Found existing graphic for ID:', uniqueId);
       graphic.geometry = point; // Update geometry
       graphic.symbol = selectedSymbol;
       graphic.visible = true; // Ensure it's visible
       mapViewRef.current.graphics.reorder(graphic, mapViewRef.current.graphics.length - 1);
-      console.log('Updated existing graphic');
     } else {
-      console.log('No existing graphic found for ID:', uniqueId, '. Creating new one.');
       graphic = new Graphic({
         geometry: point,
         symbol: selectedSymbol,
@@ -1110,26 +1319,21 @@ const BuildingSearch = () => {
         }
       });
       mapViewRef.current.graphics.add(graphic);
-      console.log('Added new graphic to map');
     }
 
     // Ensure the graphic is visible before zooming
     graphic.visible = true;
 
-    console.log('Attempting to goTo point:', JSON.stringify(point.toJSON(), null, 2));
     mapViewRef.current.goTo({
       target: point,
       zoom: 17, // Consider making zoom level more dynamic or ensuring scale is appropriate
-      // scale: 2000 // Using zoom OR scale, not typically both unless intended.
     }, {
       duration: 1000,
       easing: "ease-out"
     }).then(() => {
-      console.log('mapView.goTo completed successfully.');
       // Ensure the graphic is still visible and on top after zoom
       graphic.visible = true;
       mapViewRef.current.graphics.reorder(graphic, mapViewRef.current.graphics.length - 1);
-      console.log('Graphic reordered and ensured visible after goTo.');
     }).catch(error => {
       console.error("Error during map navigation (goTo):", error);
     });
@@ -1138,7 +1342,7 @@ const BuildingSearch = () => {
   const updateMapMarkers = (buildings) => {
     if (!mapViewRef.current) return;
 
-    // Find the buildingLayer to update for the legend
+    // Find the buildingLayer - we'll just use it for legend, not for actual features
     const buildingLayer = mapRef.current.layers.find(layer => 
       layer.title === "Buildings" && layer.type === "feature"
     );
@@ -1146,52 +1350,10 @@ const BuildingSearch = () => {
     // Keep track of existing graphics using a regular object
     const existingGraphics = {};
     mapViewRef.current.graphics.forEach(g => {
-      if (g.attributes.id) {
+      if (g.attributes && g.attributes.id) {
         existingGraphics[g.attributes.id] = g;
       }
     });
-    
-    // Create features for the legend layer
-    if (buildingLayer) {
-      // Clear existing features
-      buildingLayer.queryFeatures().then(result => {
-        if (result.features.length > 0) {
-          buildingLayer.applyEdits({
-            deleteFeatures: result.features
-          });
-        }
-      }).catch(error => {
-        console.error("Error clearing features:", error);
-      });
-
-      // Add new features based on COCR registration status
-      const legendFeatures = buildings.map((building, index) => {
-        if (!building.coordinates[0] || !building.coordinates[1]) return null;
-        
-        return {
-          geometry: new Point({
-            x: building.coordinates[0],
-            y: building.coordinates[1],
-            spatialReference: { wkid: 2326 }
-          }),
-          attributes: {
-            ObjectID: index + 1,
-            status: building.hasCsvMatch ? "registered" : "unregistered",
-            // Add other attributes for popup display
-            id: building.id,
-            name: building.name,
-            address: building.address,
-            district: building.district
-          }
-        };
-      }).filter(f => f !== null);
-
-      if (legendFeatures.length > 0) {
-        buildingLayer.applyEdits({
-          addFeatures: legendFeatures
-        });
-      }
-    }
     
     // Also update regular graphics for better control over appearance
     buildings.forEach(building => {
@@ -1312,6 +1474,12 @@ const BuildingSearch = () => {
     return colorizeIcon(mapIcon, hasCsvMatch ? 'green' : 'blue');
   };
 
+  // Update the showBookmarks state management to ensure we don't accidentally modify bookmarks
+  const toggleBookmarksPanel = () => {
+    setShowBookmarks(prevState => !prevState);
+    // No bookmark modifications here, just UI toggle
+  };
+
   return (
     <Box sx={{ display: 'flex', height: '100vh' }}>
       {/* Sidebar */}
@@ -1321,604 +1489,774 @@ const BuildingSearch = () => {
       <Box sx={{ 
         flex: 1, 
         p: 3, 
-        overflow: 'hidden',
+        overflow: 'auto',
         transition: theme => theme.transitions.create(['margin'], {
           easing: theme.transitions.easing.sharp,
           duration: theme.transitions.duration.enteringScreen,
         }),
         marginLeft: 0,
         display: 'flex',
-        flexDirection: 'column'
+        flexDirection: 'column',
+        height: '100vh'
       }}>
-        {/* Search Criteria */}
-        <Paper sx={{ p: 3, mb: 2 }}>
-          <Grid container spacing={2} alignItems="center">
-            <Grid item xs={12} md={8}>
-              <Autocomplete
-                freeSolo
-                options={suggestions}
-                getOptionLabel={(option) => {
-                  // Handle both string options and object options
-                  return typeof option === 'string' ? option : option.label || '';
-                }}
-                inputValue={searchQuery}
-                onInputChange={(event, newValue) => {
-                  setSearchQuery(newValue);
-                }}
-                onChange={(event, newValue) => {
-                  // Handle selection of an autocomplete option
-                  if (newValue && typeof newValue === 'object' && newValue.data) {
-                    handleBuildingSelect(newValue.data);
-                  }
-                }}
-                filterOptions={(options) => options}
-                renderOption={(props, option) => (
-                  <li {...props}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                      <LocationOnIcon sx={{ color: 'primary.main', mr: 1 }} />
-                      <Box sx={{ flexGrow: 1 }}>
-                        {option.label}
-                        {option.data?.hasCsvMatch && (
-                          <Chip 
-                            size="small" 
-                            label="COCR Registered" 
-                            color="primary" 
-                            sx={{ ml: 1, height: 20, fontSize: '0.7rem' }} 
+        {/* Content Container with proper scrolling */}
+        <Box sx={{ 
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100%',
+          overflow: 'hidden'
+        }}>
+          {/* Search Criteria - Fixed at top */}
+          <Paper sx={{ 
+            borderRadius: 2, 
+            boxShadow: '0 2px 8px rgba(0,0,0,0.08)', 
+            overflow: 'hidden',
+            mb: 1.5,
+            flexShrink: 0 // Prevent this from shrinking
+          }}>
+            {/* Search Header */}
+            <Box sx={{ 
+              p: 0.75,
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center', 
+              bgcolor: 'primary.main', 
+              color: 'white'
+            }}>
+              <Typography variant="subtitle1" sx={{ display: 'flex', alignItems: 'center', ml: 1 }}>
+                <SearchIcon sx={{ mr: 0.75, fontSize: '1.1rem' }} />
+                Building Search
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <Tooltip title="Bookmarked Buildings">
+                  <IconButton 
+                    color="inherit"
+                    size="small"
+                    onClick={toggleBookmarksPanel}
+                  >
+                    <BookmarksIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+            </Box>
+            
+            <Box sx={{ p: 1.5 }}>
+              <Grid container spacing={2} alignItems="center">
+                <Grid item xs={12} sm={7} md={8} lg={8}>
+                  <Autocomplete
+                    freeSolo
+                    options={suggestions}
+                    getOptionLabel={(option) => {
+                      // Handle both string options and object options
+                      return typeof option === 'string' ? option : option.label || '';
+                    }}
+                    inputValue={searchQuery}
+                    onInputChange={(event, newValue) => {
+                      setSearchQuery(newValue);
+                    }}
+                    onChange={(event, newValue) => {
+                      // Handle selection of an autocomplete option
+                      if (newValue && typeof newValue === 'object' && newValue.data) {
+                        handleBuildingSelect(newValue.data);
+                      }
+                    }}
+                    filterOptions={(options) => options}
+                    renderOption={(props, option) => (
+                      <li {...props}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                          <LocationOnIcon sx={{ color: 'primary.main', mr: 1, fontSize: '1.1rem' }} />
+                          <Box sx={{ flexGrow: 1 }}>
+                            {option.label}
+                            {option.data?.hasCsvMatch && (
+                              <Chip 
+                                size="small" 
+                                label="COCR Registered" 
+                                color="primary" 
+                                sx={{ ml: 1, height: 20, fontSize: '0.7rem' }} 
+                              />
+                            )}
+                          </Box>
+                          {option.data && (
+                            <Tooltip title={isBookmarked(option.data) ? "Remove bookmark" : "Add bookmark"}>
+                              <IconButton 
+                                size="small" 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleBookmark(option.data);
+                                }}
+                              >
+                                {isBookmarked(option.data) ? 
+                                  <BookmarkIcon color="primary" fontSize="small" /> : 
+                                  <BookmarkBorderIcon fontSize="small" />}
+                              </IconButton>
+                            </Tooltip>
+                          )}
+                        </Box>
+                      </li>
+                    )}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Search Buildings"
+                        variant="outlined"
+                        fullWidth
+                        onKeyDown={handleInputKeyDown}
+                        onChange={handleInputChange}
+                        size="small"
+                        placeholder="Enter building name or address"
+                        InputProps={{
+                          ...params.InputProps,
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <SearchIcon fontSize="small" color="action" />
+                            </InputAdornment>
+                          ),
+                          endAdornment: (
+                            <>
+                              {loading ? <CircularProgress color="inherit" size={20} /> : null}
+                              {params.InputProps.endAdornment}
+                            </>
+                          ),
+                          style: { fontSize: '0.875rem' }
+                        }}
+                      />
+                    )}
+                  />
+                </Grid>
+                
+                <Grid item xs={12} sm={5} md={4} lg={4}>
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    <FormControl size="small" sx={{ minWidth: 140 }}>
+                      <InputLabel id="district-select-label" sx={{ fontSize: '0.875rem' }}>District</InputLabel>
+                      <Select
+                        labelId="district-select-label"
+                        value={selectedDistrict}
+                        label="District"
+                        onChange={(e) => setSelectedDistrict(e.target.value)}
+                        sx={{ fontSize: '0.875rem' }}
+                      >
+                        <MenuItem value="" sx={{ fontSize: '0.875rem' }}>All Districts</MenuItem>
+                        {districts.map((district) => (
+                          <MenuItem key={district} value={district} sx={{ fontSize: '0.875rem' }}>
+                            {district}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                    
+                    <Button 
+                      variant="contained" 
+                      onClick={() => handleSearch(searchQuery, false)}
+                      size="small"
+                      sx={{ height: '36px', minWidth: '36px', px: 2 }}
+                    >
+                      <SearchIcon sx={{ fontSize: '1rem' }} />
+                    </Button>
+                  </Box>
+                </Grid>
+              </Grid>
+            </Box>
+          </Paper>
+
+          {/* Scrollable container for the rest of the content */}
+          <Box sx={{ 
+            flex: 1, 
+            display: 'flex', 
+            flexDirection: 'column',
+            overflow: 'auto' 
+          }}>
+            {/* Bookmarks Panel - Placed inside scroll area */}
+            {showBookmarks && (
+              <Paper sx={{ 
+                mb: 1.5, 
+                borderRadius: 2, 
+                boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                flexShrink: 0 // Prevent from shrinking
+              }}>
+                <Box sx={{ p: 2 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="h6" component="div">
+                      <BookmarksIcon sx={{ verticalAlign: 'middle', mr: 1 }} />
+                      Bookmarked Buildings ({bookmarks.length})
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={showBookmarkedBuildingsLayer}
+                            onChange={(e) => setShowBookmarkedBuildingsLayer(e.target.checked)}
+                            size="small"
                           />
-                        )}
-                      </Box>
-                      {option.data && (
-                        <Tooltip title={isBookmarked(option.data) ? "Remove bookmark" : "Add bookmark"}>
-                          <IconButton 
-                            size="small" 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleBookmark(option.data);
-                            }}
-                          >
-                            {isBookmarked(option.data) ? 
-                              <BookmarkIcon color="primary" fontSize="small" /> : 
-                              <BookmarkBorderIcon fontSize="small" />}
+                        }
+                        label={
+                          <Typography variant="body2">
+                            Show on map
+                          </Typography>
+                        }
+                        sx={{ mr: 1 }}
+                      />
+                      {bookmarks.length > 0 && (
+                        <Tooltip title="Clear all bookmarks">
+                          <IconButton color="error" onClick={() => {
+                            setBookmarkToDelete(null);
+                            setDeleteBookmarkDialogOpen(true);
+                          }}>
+                            <DeleteIcon />
                           </IconButton>
                         </Tooltip>
                       )}
                     </Box>
-                  </li>
-                )}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Search Buildings"
-                    variant="outlined"
-                    fullWidth
-                    onKeyDown={handleInputKeyDown}
-                    onChange={handleInputChange}
-                    InputProps={{
-                      ...params.InputProps,
-                      endAdornment: (
-                        <>
-                          {loading ? <CircularProgress color="inherit" size={20} /> : null}
-                          {params.InputProps.endAdornment}
-                        </>
-                      ),
-                    }}
-                  />
-                )}
-              />
-            </Grid>
-            <Grid item xs={12} md={2}>
-              <FormControl fullWidth>
-                <InputLabel>District</InputLabel>
-                <Select
-                  value={selectedDistrict}
-                  label="District"
-                  onChange={(e) => setSelectedDistrict(e.target.value)}
-                >
-                  <MenuItem value="">All Districts</MenuItem>
-                  {districts.map((district) => (
-                    <MenuItem key={district} value={district}>
-                      {district}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} md={1}>
-              <Button 
-                variant="contained" 
-                onClick={() => handleSearch(searchQuery, false)}
-                fullWidth
-                sx={{ height: '56px' }}
-              >
-                Search
-              </Button>
-            </Grid>
-            <Grid item xs={12} md={1}>
-              <Tooltip title="Bookmarked Buildings">
-                <Button
-                  variant={showBookmarks ? "contained" : "outlined"}
-                  color="secondary"
-                  fullWidth
-                  sx={{ height: '56px' }}
-                  onClick={() => setShowBookmarks(!showBookmarks)}
-                >
-                  <BookmarksIcon />
-                </Button>
-              </Tooltip>
-            </Grid>
-          </Grid>
-        </Paper>
-
-        {/* Layer Controls Panel */}
-        <Paper sx={{ mt: 2, p: 2, mb: 2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <LayersIcon sx={{ mr: 2, color: 'primary.main' }} />
-            <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-              Map Layers
-            </Typography>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={lotLayerVisible}
-                  onChange={handleLotLayerToggle}
-                  color="primary"
-                />
-              }
-              label="Show Land Lots"
-              labelPlacement="start"
-            />
-          </Box>
-        </Paper>
-
-        {/* Bookmarks Panel */}
-        {showBookmarks && (
-          <Paper sx={{ mt: 2, p: 2, mb: 2 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="h6" component="div">
-                <BookmarksIcon sx={{ verticalAlign: 'middle', mr: 1 }} />
-                Bookmarked Buildings ({bookmarks.length})
-              </Typography>
-              {bookmarks.length > 0 && (
-                <Tooltip title="Clear all bookmarks">
-                  <IconButton color="error" onClick={clearAllBookmarks}>
-                    <DeleteIcon />
-                  </IconButton>
-                </Tooltip>
-              )}
-            </Box>
-            
-            {bookmarks.length === 0 ? (
-              <Typography variant="body2" color="text.secondary" sx={{ p: 2, textAlign: 'center' }}>
-                No bookmarked buildings yet. Click the bookmark icon to save buildings for quick access.
-              </Typography>
-            ) : (
-              <List sx={{ maxHeight: '300px', overflow: 'auto' }}>
-                {bookmarks.map((building) => (
-                  <ListItem 
-                    key={building.id}
-                    sx={{ 
-                      borderBottom: '1px solid #eee',
-                      '&:last-child': { borderBottom: 'none' }
-                    }}
-                  >
-                    <ListItemIcon>
-                      <LocationOnIcon color="primary" />
-                    </ListItemIcon>
-                    <ListItemText 
-                      primary={building.name || building.id}
-                      secondary={
-                        <Box component="span">
-                          {building.address}
-                          {building.hasCsvMatch && (
-                            <Chip 
-                              size="small" 
-                              label="COCR Registered" 
-                              color="primary" 
-                              sx={{ ml: 1, height: 20, fontSize: '0.7rem' }} 
-                            />
-                          )}
-                        </Box>
-                      }
-                      primaryTypographyProps={{ fontWeight: 'medium' }}
-                    />
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                      <Tooltip title="View on map">
-                        <IconButton 
-                          size="small" 
-                          color="primary"
-                          onClick={() => handleBuildingSelect(building)}
-                        >
-                          <SearchIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Remove bookmark">
-                        <IconButton 
-                          size="small" 
-                          color="error"
-                          onClick={() => toggleBookmark(building)}
-                        >
-                          <BookmarkIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    </Box>
-                  </ListItem>
-                ))}
-              </List>
-            )}
-          </Paper>
-        )}
-
-        {/* Map and Results Container - Two-column layout */}
-        <Box sx={{ display: 'flex', flexDirection: 'row', gap: 2, height: '700px', mt: 2 }}>
-          {/* Suggested Address List - Left Column */}
-          {suggestedList.length > 0 && (
-            <Paper sx={{ 
-              width: addressPanelOpen ? '350px' : '50px',
-              flexShrink: 0,
-              p: addressPanelOpen ? 2 : 1,
-              bgcolor: '#f7f7f7', 
-              borderRadius: 2, 
-              boxShadow: 1,
-              overflowY: 'auto',
-              display: 'flex',
-              flexDirection: 'column',
-              transition: 'width 0.3s ease, padding 0.3s ease',
-              position: 'relative'
-            }}>
-              {/* Vertical label for collapsed state */}
-              {!addressPanelOpen && (
-                <Tooltip title="Click to expand suggested addresses" placement="right">
-                  <Box 
-                    sx={{ 
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      width: '100%',
-                      height: '100%',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      background: 'linear-gradient(180deg, rgba(245,247,250,1) 0%, rgba(233,236,239,1) 100%)',
-                      borderRadius: 2,
-                      borderRight: '1px solid rgba(0,0,0,0.1)',
-                      boxShadow: 'inset -2px 0px 4px rgba(0,0,0,0.05)',
-                      cursor: 'pointer',
-                      '&:hover': {
-                        background: 'linear-gradient(180deg, rgba(236,239,242,1) 0%, rgba(227,230,235,1) 100%)',
-                        '& .MuiSvgIcon-root': {
-                          transform: 'scale(1.1)',
-                        },
-                        '& .expand-hint': {
-                          opacity: 1
-                        }
-                      }
-                    }}
-                    onClick={() => setAddressPanelOpen(true)}
-                  >
-                    <Box
-                      sx={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: 2.5,
-                        position: 'relative',
-                        py: 3,
-                      }}
-                    >
-                      <LocationOnIcon 
-                        color="primary" 
-                        fontSize="medium"
-                        sx={{ 
-                          transition: 'transform 0.2s ease',
-                          filter: 'drop-shadow(0px 1px 2px rgba(0,0,0,0.2))'
-                        }} 
-                      />
-                      
-                      <Box sx={{ position: 'relative', height: 180, display: 'flex', alignItems: 'center' }}>
-                        <Typography 
-                          variant="caption" 
-                          sx={{ 
-                            transform: 'rotate(-90deg)', 
-                            transformOrigin: 'center',
-                            whiteSpace: 'nowrap',
-                            fontWeight: '600',
-                            letterSpacing: 1.2,
-                            color: 'primary.main',
-                            fontSize: '0.75rem',
-                            textTransform: 'uppercase',
-                            textShadow: '0px 1px 1px rgba(255,255,255,0.8)'
-                          }}
-                        >
-                          Suggested Addresses
-                        </Typography>
-                      </Box>
-                      
-                      <Chip 
-                        label={suggestedList.length} 
-                        size="small" 
-                        color="primary" 
-                        sx={{ 
-                          height: '24px', 
-                          minWidth: '24px',
-                          fontWeight: 'bold',
-                          boxShadow: '0px 1px 3px rgba(0,0,0,0.2)',
-                          '& .MuiChip-label': { 
-                            padding: '0 8px',
-                            fontSize: '0.75rem'
-                          }
-                        }} 
-                      />
-                      
-                      <Box 
-                        className="expand-hint"
-                        sx={{ 
-                          display: 'flex',
-                          alignItems: 'center',
-                          mt: 2,
-                          opacity: 0.7,
-                          transition: 'opacity 0.2s ease'
-                        }}
-                      >
-                        <ChevronRightIcon 
-                          fontSize="small" 
-                          color="action"
-                          sx={{ 
-                            animation: 'pulse 1.5s infinite',
-                            '@keyframes pulse': {
-                              '0%': { opacity: 0.5, transform: 'translateX(0)' },
-                              '50%': { opacity: 1, transform: 'translateX(2px)' },
-                              '100%': { opacity: 0.5, transform: 'translateX(0)' }
-                            }
-                          }} 
-                        />
-                      </Box>
-                    </Box>
                   </Box>
-                </Tooltip>
-              )}
-
-              {/* Toggle button for collapsing the panel */}
-              <IconButton 
-                onClick={(e) => {
-                  e.stopPropagation(); // Prevent event from bubbling up to parent
-                  setAddressPanelOpen(!addressPanelOpen);
-                }}
-                sx={{ 
-                  position: 'absolute', 
-                  right: addressPanelOpen ? 8 : '50%', 
-                  top: addressPanelOpen ? 8 : 8, 
-                  transform: addressPanelOpen ? 'none' : 'translateX(50%)',
-                  zIndex: 20,
-                  bgcolor: addressPanelOpen ? 'background.paper' : 'primary.main',
-                  color: addressPanelOpen ? 'inherit' : 'white',
-                  boxShadow: '0px 2px 4px rgba(0,0,0,0.15)',
-                  transition: 'background-color 0.2s ease, transform 0.3s ease, right 0.3s ease',
-                  '&:hover': { 
-                    bgcolor: addressPanelOpen ? 'background.default' : 'primary.dark' 
-                  }
-                }}
-                size="small"
-              >
-                {addressPanelOpen ? <ChevronLeftIcon /> : <ChevronRightIcon />}
-              </IconButton>
-
-              <Collapse in={addressPanelOpen} orientation="horizontal" sx={{ width: '100%' }}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                  <Box 
-                    sx={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between', 
-                      alignItems: 'center', 
-                      mb: 1, 
-                      pr: 4,
-                      cursor: 'pointer',
-                      py: 1,
-                      pl: 1,
-                      borderRadius: '4px',
-                      transition: 'background-color 0.2s ease',
-                      '&:hover': {
-                        bgcolor: 'rgba(0, 0, 0, 0.04)'
-                      }
-                    }}
-                    onClick={() => setAddressPanelOpen(false)}
-                  >
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mr: 1 }} component="div">
-                        Suggested Addresses
-                      </Typography>
-                      <Tooltip title="Collapse panel">
-                        <ChevronLeftIcon fontSize="small" color="action" sx={{ fontSize: '1rem', opacity: 0.7 }} />
-                      </Tooltip>
-                    </Box>
-                    <Chip 
-                      label={`${suggestedList.length} results`} 
-                      size="small" 
-                      color="primary" 
-                      variant="outlined"
-                    />
-                  </Box>
-                  <List sx={{ overflowY: 'auto', flex: 1 }}>
-                    {suggestedList.map((item, idx) => {
-                      const eng = item.Address?.PremisesAddress?.EngPremisesAddress;
-                      const chi = item.Address?.PremisesAddress?.ChiPremisesAddress;
-                      // Get formatted address using buildAddressLabel
-                      const formattedAddress = buildAddressLabel(item.Address);
-                      // Split address into English and Chinese parts if it contains a separator
-                      const addressParts = formattedAddress.split(' / ');
-                      const engAddress = addressParts[0] || '';
-                      const chiAddress = addressParts[1] || '';
-                      
-                      // CSV match logic
-                      const csvMatch = csvData.find(csvItem =>
-                        csvItem.EngName === eng?.BuildingName ||
-                        csvItem.ChiName === chi?.BuildingName
-                      );
-                      
-                      // Get GeoAddress for unique identifier
-                      const geoAddress = item.Address?.PremisesAddress?.GeoAddress || '';
-                      
-                      return (
+                  
+                  {bookmarks.length === 0 ? (
+                    <Typography variant="body2" color="text.secondary" sx={{ p: 2, textAlign: 'center' }}>
+                      No bookmarked buildings yet. Click the bookmark icon to save buildings for quick access.
+                    </Typography>
+                  ) : (
+                    <List sx={{ maxHeight: '300px', overflow: 'auto' }}>
+                      {bookmarks.map((building) => (
                         <ListItem 
-                          button 
-                          key={idx} 
-                          alignItems="flex-start" 
-                          onClick={() => handleBuildingSelect({
-                            id: geoAddress || eng?.BuildingName || '',
-                            name: eng?.BuildingName || '',
-                            nameZH: chi?.BuildingName || '',
-                            address: eng?.EngStreet?.StreetName || '',
-                            addressZH: chi?.ChiStreet?.StreetName || '',
-                            district: eng?.EngDistrict?.DcDistrict || '',
-                            districtZH: chi?.ChiDistrict?.DcDistrict || '',
-                            // Include building numbers if available
-                            buildingNoFrom: eng?.EngStreet?.BuildingNoFrom || '',
-                            buildingNoTo: eng?.EngStreet?.BuildingNoTo || '',
-                            // Include block and estate info
-                            block: eng?.EngBlock || '',
-                            estate: eng?.EngEstate?.EstateName || '',
-                            coordinates: [item.Address?.PremisesAddress?.GeospatialInformation?.Easting, item.Address?.PremisesAddress?.GeospatialInformation?.Northing],
-                            // Include latitude and longitude information from GeospatialInformation
-                            latitude: item.Address?.PremisesAddress?.GeospatialInformation?.Latitude || '',
-                            longitude: item.Address?.PremisesAddress?.GeospatialInformation?.Longitude || '',
-                            geoAddress: geoAddress,
-                            hasCsvMatch: !!csvMatch,
-                            csvData: csvMatch
-                          })}
-                          sx={{
-                            borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
-                            py: 1.5,
-                            '&:hover': {
-                              backgroundColor: 'rgba(0, 0, 0, 0.04)'
-                            }
+                          key={building.uniqueId || building.id}
+                          sx={{ 
+                            borderBottom: '1px solid #eee',
+                            '&:last-child': { borderBottom: 'none' }
                           }}
                         >
                           <ListItemIcon>
                             <LocationOnIcon color="primary" />
                           </ListItemIcon>
-                          <ListItemText
-                            disableTypography
-                            primary={
-                              <Typography variant="body1" sx={{ fontWeight: 500, lineHeight: 1.3 }} component="span">
-                                {engAddress}
-                              </Typography>
-                            }
+                          <ListItemText 
+                            primary={building.customName || building.name || building.id}
                             secondary={
-                              <Box component="span" sx={{ display: 'block' }}>
-                                <Typography variant="body2" color="text.secondary" component="span" sx={{ display: 'block', mt: 0.5, lineHeight: 1.3 }}>
-                                  {chiAddress}
-                                </Typography>
-                                <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', mt: 0.5, gap: 0.5 }}>
+                              <Box component="span">
+                                {building.address}
+                                {building.hasCsvMatch && (
                                   <Chip 
-                                    label={eng?.EngDistrict?.DcDistrict} 
                                     size="small" 
-                                    sx={{ height: '20px', fontSize: '0.7rem' }}
+                                    label="COCR Registered" 
+                                    color="primary" 
+                                    sx={{ ml: 1, height: 20, fontSize: '0.7rem' }} 
                                   />
-                                  {csvMatch && (
-                                    <Chip 
-                                      label="COCR Registered" 
-                                      size="small" 
-                                      color="primary" 
-                                      sx={{ height: '20px', fontSize: '0.7rem', maxWidth: '100%', whiteSpace: 'nowrap' }} 
-                                    />
-                                  )}
-                                </Box>
+                                )}
                               </Box>
                             }
+                            primaryTypographyProps={{ fontWeight: 'medium' }}
                           />
+                          <Box sx={{ display: 'flex', gap: 1 }}>
+                            <Tooltip title="View on map">
+                              <IconButton 
+                                size="small" 
+                                color="primary"
+                                onClick={() => handleBuildingSelect(building)}
+                              >
+                                <SearchIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Edit bookmark name">
+                              <IconButton 
+                                size="small" 
+                                color="primary"
+                                onClick={() => editBookmark(building)}
+                              >
+                                <EditIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Remove bookmark">
+                              <IconButton 
+                                size="small" 
+                                color="error"
+                                onClick={() => {
+                                  setBookmarkToDelete(building);
+                                  setDeleteBookmarkDialogOpen(true);
+                                }}
+                              >
+                                <BookmarkIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          </Box>
                         </ListItem>
-                      );
-                    })}
-                  </List>
-                </Box>
-              </Collapse>
-            </Paper>
-          )}
-
-          {/* Map Container - Right Column (or full width if no suggestions) */}
-          <Paper sx={{ 
-            flex: 1, 
-            position: 'relative',
-            borderRadius: 2,
-            boxShadow: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden'
-          }}>
-            <div id="map-view" style={{ height: '100%', width: '100%', flexGrow: 1 }}></div>
-            <div id="legend-container"></div>
-            {selectedBuilding && (
-              <Paper
-                sx={{
-                  position: 'absolute',
-                  bottom: 20,
-                  left: 20,
-                  right: 20,
-                  p: 2,
-                  backgroundColor: 'white',
-                  boxShadow: 3
-                }}
-              >
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography variant="h6">{selectedBuilding.name}</Typography>
-                  <Tooltip title={isBookmarked(selectedBuilding) ? "Remove bookmark" : "Add to bookmarks"}>
-                    <IconButton 
-                      onClick={() => toggleBookmark(selectedBuilding)}
-                      color={isBookmarked(selectedBuilding) ? "primary" : "default"}
-                    >
-                      {isBookmarked(selectedBuilding) ? <BookmarkIcon /> : <BookmarkBorderIcon />}
-                    </IconButton>
-                  </Tooltip>
-                </Box>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                  {/* Display a more detailed address */}
-                  {selectedBuilding.buildingNoFrom && (
-                    <span>
-                      {selectedBuilding.buildingNoFrom}
-                      {selectedBuilding.buildingNoTo && `-${selectedBuilding.buildingNoTo}`}{' '}
-                    </span>
-                  )}
-                  {selectedBuilding.address}
-                  {selectedBuilding.block && `, Block ${selectedBuilding.block}`}
-                  {selectedBuilding.estate && ` (${selectedBuilding.estate})`}
-                </Typography>
-                {/* Display latitude and longitude if available */}
-                {(selectedBuilding.latitude || selectedBuilding.longitude) && (
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                    Coordinates: {selectedBuilding.latitude && `${selectedBuilding.latitude}°N`}
-                    {selectedBuilding.latitude && selectedBuilding.longitude && ', '}
-                    {selectedBuilding.longitude && `${selectedBuilding.longitude}°E`}
-                  </Typography>
-                )}
-                <Box sx={{ mt: 1 }}>
-                  <Chip 
-                    label={selectedBuilding.district} 
-                    size="small" 
-                    sx={{ mr: 1 }}
-                  />
-                  {selectedBuilding.hasCsvMatch && (
-                    <Chip 
-                      label="COCR Registered" 
-                      size="small" 
-                      color="primary"
-                      sx={{ mr: 1 }}
-                    />
-                  )}
-                  {selectedBuilding.geoAddress && (
-                    <Tooltip title="GeoAddress Identifier">
-                      <Chip 
-                        label={`ID: ${selectedBuilding.geoAddress.substring(0, 10)}...`}
-                        size="small" 
-                        color="secondary"
-                        variant="outlined"
-                      />
-                    </Tooltip>
+                      ))}
+                    </List>
                   )}
                 </Box>
               </Paper>
             )}
-          </Paper>
+
+            {/* Map and Results Container - Takes remaining space */}
+            <Box sx={{ 
+              display: 'flex', 
+              flexDirection: 'row', 
+              gap: 2, 
+              flexGrow: 1,
+              minHeight: '500px'
+            }}>
+              {/* Suggested Address List - Left Column */}
+              {suggestedList.length > 0 && (
+                <Paper sx={{ 
+                  width: addressPanelOpen ? '350px' : '50px',
+                  flexShrink: 0,
+                  p: addressPanelOpen ? 2 : 1,
+                  bgcolor: '#f7f7f7', 
+                  borderRadius: 2, 
+                  boxShadow: 1,
+                  overflowY: 'auto',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  transition: 'width 0.3s ease, padding 0.3s ease',
+                  position: 'relative'
+                }}>
+                  {/* Vertical label for collapsed state */}
+                  {!addressPanelOpen && (
+                    <Tooltip title="Click to expand suggested addresses" placement="right">
+                      <Box 
+                        sx={{ 
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: '100%',
+                          height: '100%',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          background: 'linear-gradient(180deg, rgba(245,247,250,1) 0%, rgba(233,236,239,1) 100%)',
+                          borderRadius: 2,
+                          borderRight: '1px solid rgba(0,0,0,0.1)',
+                          boxShadow: 'inset -2px 0px 4px rgba(0,0,0,0.05)',
+                          cursor: 'pointer',
+                          '&:hover': {
+                            background: 'linear-gradient(180deg, rgba(236,239,242,1) 0%, rgba(227,230,235,1) 100%)',
+                            '& .MuiSvgIcon-root': {
+                              transform: 'scale(1.1)',
+                            },
+                            '& .expand-hint': {
+                              opacity: 1
+                            }
+                          }
+                        }}
+                        onClick={() => setAddressPanelOpen(true)}
+                      >
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: 2.5,
+                            position: 'relative',
+                            py: 3,
+                          }}
+                        >
+                          <LocationOnIcon 
+                            color="primary" 
+                            fontSize="medium"
+                            sx={{ 
+                              transition: 'transform 0.2s ease',
+                              filter: 'drop-shadow(0px 1px 2px rgba(0,0,0,0.2))'
+                            }} 
+                          />
+                          
+                          <Box sx={{ position: 'relative', height: 180, display: 'flex', alignItems: 'center' }}>
+                            <Typography 
+                              variant="caption" 
+                              sx={{ 
+                                transform: 'rotate(-90deg)', 
+                                transformOrigin: 'center',
+                                whiteSpace: 'nowrap',
+                                fontWeight: '600',
+                                letterSpacing: 1.2,
+                                color: 'primary.main',
+                                fontSize: '0.75rem',
+                                textTransform: 'uppercase',
+                                textShadow: '0px 1px 1px rgba(255,255,255,0.8)'
+                              }}
+                            >
+                              Suggested Addresses
+                            </Typography>
+                          </Box>
+                          
+                          <Chip 
+                            label={suggestedList.length} 
+                            size="small" 
+                            color="primary" 
+                            sx={{ 
+                              height: '24px', 
+                              minWidth: '24px',
+                              fontWeight: 'bold',
+                              boxShadow: '0px 1px 3px rgba(0,0,0,0.2)',
+                              '& .MuiChip-label': { 
+                                padding: '0 8px',
+                                fontSize: '0.75rem'
+                              }
+                            }} 
+                          />
+                          
+                          <Box 
+                            className="expand-hint"
+                            sx={{ 
+                              display: 'flex',
+                              alignItems: 'center',
+                              mt: 2,
+                              opacity: 0.7,
+                              transition: 'opacity 0.2s ease'
+                            }}
+                          >
+                            <ChevronRightIcon 
+                              fontSize="small" 
+                              color="action"
+                              sx={{ 
+                                animation: 'pulse 1.5s infinite',
+                                '@keyframes pulse': {
+                                  '0%': { opacity: 0.5, transform: 'translateX(0)' },
+                                  '50%': { opacity: 1, transform: 'translateX(2px)' },
+                                  '100%': { opacity: 0.5, transform: 'translateX(0)' }
+                                }
+                              }} 
+                            />
+                          </Box>
+                        </Box>
+                      </Box>
+                    </Tooltip>
+                  )}
+
+                  {/* Toggle button for collapsing the panel */}
+                  <IconButton 
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent event from bubbling up to parent
+                      setAddressPanelOpen(!addressPanelOpen);
+                    }}
+                    sx={{ 
+                      position: 'absolute', 
+                      right: addressPanelOpen ? 8 : '50%', 
+                      top: addressPanelOpen ? 8 : 8, 
+                      transform: addressPanelOpen ? 'none' : 'translateX(50%)',
+                      zIndex: 20,
+                      bgcolor: addressPanelOpen ? 'background.paper' : 'primary.main',
+                      color: addressPanelOpen ? 'inherit' : 'white',
+                      boxShadow: '0px 2px 4px rgba(0,0,0,0.15)',
+                      transition: 'background-color 0.2s ease, transform 0.3s ease, right 0.3s ease',
+                      '&:hover': { 
+                        bgcolor: addressPanelOpen ? 'background.default' : 'primary.dark' 
+                      }
+                    }}
+                    size="small"
+                  >
+                    {addressPanelOpen ? <ChevronLeftIcon /> : <ChevronRightIcon />}
+                  </IconButton>
+
+                  <Collapse in={addressPanelOpen} orientation="horizontal" sx={{ width: '100%' }}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                      <Box 
+                        sx={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between', 
+                          alignItems: 'center', 
+                          mb: 1, 
+                          pr: 4,
+                          cursor: 'pointer',
+                          py: 1,
+                          pl: 1,
+                          borderRadius: '4px',
+                          transition: 'background-color 0.2s ease',
+                          '&:hover': {
+                            bgcolor: 'rgba(0, 0, 0, 0.04)'
+                          }
+                        }}
+                        onClick={() => setAddressPanelOpen(false)}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mr: 1 }} component="div">
+                            Suggested Addresses
+                          </Typography>
+                          <Tooltip title="Collapse panel">
+                            <ChevronLeftIcon fontSize="small" color="action" sx={{ fontSize: '1rem', opacity: 0.7 }} />
+                          </Tooltip>
+                        </Box>
+                        <Chip 
+                          label={`${suggestedList.length} results`} 
+                          size="small" 
+                          color="primary" 
+                          variant="outlined"
+                        />
+                      </Box>
+                      <List sx={{ overflowY: 'auto', flex: 1 }}>
+                        {suggestedList.map((item, idx) => {
+                          const eng = item.Address?.PremisesAddress?.EngPremisesAddress;
+                          const chi = item.Address?.PremisesAddress?.ChiPremisesAddress;
+                          // Get formatted address using buildAddressLabel
+                          const formattedAddress = buildAddressLabel(item.Address);
+                          // Split address into English and Chinese parts if it contains a separator
+                          const addressParts = formattedAddress.split(' / ');
+                          const engAddress = addressParts[0] || '';
+                          const chiAddress = addressParts[1] || '';
+                          
+                          // CSV match logic
+                          const csvMatch = csvData.find(csvItem =>
+                            csvItem.EngName === eng?.BuildingName ||
+                            csvItem.ChiName === chi?.BuildingName
+                          );
+                          
+                          // Get GeoAddress for unique identifier
+                          const geoAddress = item.Address?.PremisesAddress?.GeoAddress || '';
+                          
+                          return (
+                            <ListItem 
+                              button 
+                              key={idx} 
+                              alignItems="flex-start" 
+                              onClick={() => handleBuildingSelect({
+                                id: geoAddress || eng?.BuildingName || '',
+                                name: eng?.BuildingName || '',
+                                nameZH: chi?.BuildingName || '',
+                                address: eng?.EngStreet?.StreetName || '',
+                                addressZH: chi?.ChiStreet?.StreetName || '',
+                                district: eng?.EngDistrict?.DcDistrict || '',
+                                districtZH: chi?.ChiDistrict?.DcDistrict || '',
+                                // Include building numbers if available
+                                buildingNoFrom: eng?.EngStreet?.BuildingNoFrom || '',
+                                buildingNoTo: eng?.EngStreet?.BuildingNoTo || '',
+                                // Include block and estate info
+                                block: eng?.EngBlock || '',
+                                estate: eng?.EngEstate?.EstateName || '',
+                                coordinates: [item.Address?.PremisesAddress?.GeospatialInformation?.Easting, item.Address?.PremisesAddress?.GeospatialInformation?.Northing],
+                                // Include latitude and longitude information from GeospatialInformation
+                                latitude: item.Address?.PremisesAddress?.GeospatialInformation?.Latitude || '',
+                                longitude: item.Address?.PremisesAddress?.GeospatialInformation?.Longitude || '',
+                                geoAddress: geoAddress,
+                                hasCsvMatch: !!csvMatch,
+                                csvData: csvMatch
+                              })}
+                              sx={{
+                                borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
+                                py: 1.5,
+                                '&:hover': {
+                                  backgroundColor: 'rgba(0, 0, 0, 0.04)'
+                                }
+                              }}
+                            >
+                              <ListItemIcon>
+                                <LocationOnIcon color="primary" />
+                              </ListItemIcon>
+                              <ListItemText
+                                disableTypography
+                                primary={
+                                  <Typography variant="body1" sx={{ fontWeight: 500, lineHeight: 1.3 }} component="span">
+                                    {engAddress}
+                                  </Typography>
+                                }
+                                secondary={
+                                  <Box component="span" sx={{ display: 'block' }}>
+                                    <Typography variant="body2" color="text.secondary" component="span" sx={{ display: 'block', mt: 0.5, lineHeight: 1.3 }}>
+                                      {chiAddress}
+                                    </Typography>
+                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', mt: 0.5, gap: 0.5 }}>
+                                      <Chip 
+                                        label={eng?.EngDistrict?.DcDistrict} 
+                                        size="small" 
+                                        sx={{ height: '20px', fontSize: '0.7rem' }}
+                                      />
+                                      {csvMatch && (
+                                        <Chip 
+                                          label="COCR Registered" 
+                                          size="small" 
+                                          color="primary" 
+                                          sx={{ height: '20px', fontSize: '0.7rem', maxWidth: '100%', whiteSpace: 'nowrap' }} 
+                                        />
+                                      )}
+                                    </Box>
+                                  </Box>
+                                }
+                              />
+                            </ListItem>
+                          );
+                        })}
+                      </List>
+                    </Box>
+                  </Collapse>
+                </Paper>
+              )}
+
+              {/* Map Container - Right Column (or full width if no suggestions) */}
+              <Paper sx={{ 
+                flex: 1, 
+                position: 'relative',
+                borderRadius: 2,
+                boxShadow: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden'
+              }}>
+                <div id="map-view" style={{ height: '100%', width: '100%', flexGrow: 1 }}></div>
+                <div id="legend-container"></div>
+                {selectedBuilding && (
+                  <Paper
+                    sx={{
+                      position: 'absolute',
+                      bottom: 20,
+                      left: 20,
+                      right: 20,
+                      p: 2,
+                      backgroundColor: 'white',
+                      boxShadow: 3
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="h6">{selectedBuilding.name}</Typography>
+                      <Tooltip title={isBookmarked(selectedBuilding) ? "Remove bookmark" : "Add to bookmarks"}>
+                        <IconButton 
+                          onClick={() => toggleBookmark(selectedBuilding)}
+                          color={isBookmarked(selectedBuilding) ? "primary" : "default"}
+                        >
+                          {isBookmarked(selectedBuilding) ? <BookmarkIcon /> : <BookmarkBorderIcon />}
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                      {/* Display a more detailed address */}
+                      {selectedBuilding.buildingNoFrom && (
+                        <span>
+                          {selectedBuilding.buildingNoFrom}
+                          {selectedBuilding.buildingNoTo && `-${selectedBuilding.buildingNoTo}`}{' '}
+                        </span>
+                      )}
+                      {selectedBuilding.address}
+                      {selectedBuilding.block && `, Block ${selectedBuilding.block}`}
+                      {selectedBuilding.estate && ` (${selectedBuilding.estate})`}
+                    </Typography>
+                    {/* Display latitude and longitude if available */}
+                    {(selectedBuilding.latitude || selectedBuilding.longitude) && (
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                        Coordinates: {selectedBuilding.latitude && `${selectedBuilding.latitude}°N`}
+                        {selectedBuilding.latitude && selectedBuilding.longitude && ', '}
+                        {selectedBuilding.longitude && `${selectedBuilding.longitude}°E`}
+                      </Typography>
+                    )}
+                    <Box sx={{ mt: 1 }}>
+                      <Chip 
+                        label={selectedBuilding.district} 
+                        size="small" 
+                        sx={{ mr: 1 }}
+                      />
+                      {selectedBuilding.hasCsvMatch && (
+                        <Chip 
+                          label="COCR Registered" 
+                          size="small" 
+                          color="primary"
+                          sx={{ mr: 1 }}
+                        />
+                      )}
+                      {selectedBuilding.geoAddress && (
+                        <Tooltip title="GeoAddress Identifier">
+                          <Chip 
+                            label={`ID: ${selectedBuilding.geoAddress.substring(0, 10)}...`}
+                            size="small" 
+                            color="secondary"
+                            variant="outlined"
+                          />
+                        </Tooltip>
+                      )}
+                    </Box>
+                  </Paper>
+                )}
+              </Paper>
+            </Box>
+          </Box>
         </Box>
+
+        {/* Bookmark Dialog */}
+        <Dialog open={bookmarkDialogOpen} onClose={() => setBookmarkDialogOpen(false)}>
+          <DialogTitle>{editingBookmark ? 'Edit Building Bookmark' : 'Save Building Bookmark'}</DialogTitle>
+          <DialogContent>
+            <DialogContentText>
+              {editingBookmark 
+                ? 'Edit the name for this bookmarked building.' 
+                : 'Enter a name for this building bookmark.'}
+            </DialogContentText>
+            <TextField
+              autoFocus
+              margin="dense"
+              id="name"
+              label="Bookmark Name"
+              type="text"
+              fullWidth
+              variant="outlined"
+              value={bookmarkName}
+              onChange={(e) => setBookmarkName(e.target.value)}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setBookmarkDialogOpen(false)} color="primary">
+              Cancel
+            </Button>
+            <Button onClick={handleConfirmBookmark} color="primary" variant="contained">
+              {editingBookmark ? 'Update' : 'Save'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <Dialog
+          open={deleteBookmarkDialogOpen}
+          onClose={() => setDeleteBookmarkDialogOpen(false)}
+        >
+          <DialogTitle>
+            {bookmarkToDelete ? 'Remove Bookmark' : 'Clear All Bookmarks'}
+          </DialogTitle>
+          <DialogContent>
+            <DialogContentText>
+              {bookmarkToDelete 
+                ? `Are you sure you want to remove the bookmark for "${bookmarkToDelete.customName || bookmarkToDelete.name || 'this building'}"?` 
+                : 'Are you sure you want to remove all building bookmarks? This action cannot be undone.'}
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setDeleteBookmarkDialogOpen(false)} color="primary">
+              Cancel
+            </Button>
+            <Button 
+              onClick={bookmarkToDelete ? handleDeleteBookmark : clearAllBookmarks} 
+              color="error" 
+              variant="contained"
+            >
+              {bookmarkToDelete ? 'Remove' : 'Clear All'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Floating Add Bookmark Button (only when building is selected) */}
+        {selectedBuilding && !isBookmarked(selectedBuilding) && (
+          <Fab
+            color="primary"
+            size="medium"
+            aria-label="add bookmark"
+            onClick={() => toggleBookmark(selectedBuilding)}
+            sx={{
+              position: 'fixed',
+              bottom: (theme) => theme.spacing(10),
+              right: (theme) => theme.spacing(3),
+              zIndex: 1000
+            }}
+          >
+            <BookmarkBorderIcon />
+          </Fab>
+        )}
+
+        {/* Floating Show Bookmarks Button */}
+        {bookmarks.length > 0 && !showBookmarks && (
+          <Fab
+            color="secondary"
+            size="medium"
+            aria-label="show bookmarks"
+            onClick={toggleBookmarksPanel}
+            sx={{
+              position: 'fixed',
+              bottom: (theme) => theme.spacing(3),
+              right: (theme) => theme.spacing(3),
+              zIndex: 1000
+            }}
+          >
+            <BookmarksIcon />
+          </Fab>
+        )}
       </Box>
     </Box>
   );

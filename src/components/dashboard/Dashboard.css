@@ -6,15 +6,33 @@
 
 .tableau-container {
   width: 100%;
+  height: 400px; /* Default height that will adjust based on container */
+  flex: 1;
   background-color: white;
-  border-radius: 8px;
+  border-radius: 0 0 8px 8px;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 tableau-viz {
   width: 100%;
   height: 100%;
-  border-radius: 8px;
+  flex: 1;
+  border-radius: 0 0 8px 8px;
+}
+
+/* Responsive adjustments for tableau container */
+@media (max-width: 960px) {
+  .tableau-container {
+    height: 350px;
+  }
+}
+
+@media (max-width: 600px) {
+  .tableau-container {
+    height: 300px;
+  }
 }
 
 .inbox-messages {
