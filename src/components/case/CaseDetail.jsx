@@ -595,28 +595,26 @@ const CaseDetail = () => {
           >
             <Card sx={{ mb: 1, flexShrink: 0, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
               <CardContent sx={{ pb: '8px !important', pt: 1.5, px: 2 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: detailsExpanded ? 1 : 0 }}>                  
-                  <Box sx={{ display: 'flex', alignItems: 'center' }}>                    
-                    <Typography variant="subtitle1" sx={{ mr: 1, fontWeight: 'medium' }}>Case Details</Typography>
-                    {!detailsExpanded && (
-                      <Typography variant="body2" sx={{ mr: 1, color: 'text.secondary' }}>
-                        EMSD/EEO/BC/19/01/06 | {caseData.caseType}
-                      </Typography>
-                    )}
-                    <IconButton 
-                      size="small" 
-                      onClick={() => setDetailsExpanded(!detailsExpanded)}
-                      sx={{ ml: 0.5, p: 0.5 }}
-                    >
-                      {detailsExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                    </IconButton>
-                  </Box>
-                  <Chip 
-                    label={caseData.status} 
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: detailsExpanded ? 1 : 0 }}>
+                  <Typography variant="subtitle1" sx={{ mr: 1, fontWeight: 'medium' }}>Case Details</Typography>
+                  {!detailsExpanded && (
+                    <Typography variant="body2" sx={{ mr: 1, color: 'text.secondary' }}>
+                      EMSD/EEO/BC/19/01/06 | {caseData.caseType}
+                    </Typography>
+                  )}
+                  <Chip
+                    label={caseData.status}
                     color={caseData.status === 'Open' ? 'primary' : (caseData.status === 'In Progress' ? 'primary' : (caseData.status === 'Pending' ? 'warning' : (caseData.status === 'Rejected' ? 'error' : (caseData.status === 'Completed' || caseData.status === 'Closed' ? 'success' : 'default'))))}
                     size="small"
-                    sx={{ height: '22px', '& .MuiChip-label': { px: 1, py: 0.25, fontSize: '0.75rem' } }}
+                    sx={{ height: '22px', '& .MuiChip-label': { px: 1, py: 0.25, fontSize: '0.75rem' }, ml: 1 }}
                   />
+                  <IconButton
+                    size="small"
+                    onClick={() => setDetailsExpanded(!detailsExpanded)}
+                    sx={{ ml: 0.5, p: 0.5 }}
+                  >
+                    {detailsExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                  </IconButton>
                 </Box>
                 <Collapse in={detailsExpanded} timeout="auto">
                   <Grid container spacing={0.75} sx={{ mt: 0 }}> {/* Reduced spacing for denser info */}
@@ -1425,7 +1423,7 @@ const CaseDetail = () => {
                                 </Typography>
                               </Box>
                             }
-                            sx={{ mr: 2 }}
+                            sx={{ mr: 1 }} // Reduced margin from mr: 2 to mr: 1
                           />
                           <Chip 
                             label={task.status} 
