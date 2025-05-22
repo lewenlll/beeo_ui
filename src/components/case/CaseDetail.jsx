@@ -53,6 +53,7 @@ import AssignmentIcon from '@mui/icons-material/Assignment';
 import CancelIcon from '@mui/icons-material/Cancel';
 import BlockIcon from '@mui/icons-material/Block';
 import SearchIcon from '@mui/icons-material/Search';
+import VisibilityIcon from '@mui/icons-material/Visibility'; // Added VisibilityIcon
 import BreadcrumbNav from '../common/BreadcrumbNav';
 import AppSidebar from '../common/AppSidebar';
 import AttachmentUpload from '../common/AttachmentUpload';
@@ -303,6 +304,10 @@ const CaseDetail = () => {
     setCaseId(newCaseId);
     setEditMode(false);
     setEditableData(casesData[newCaseId].applicationForm || {});
+  };
+
+  const handleViewRelatedCaseInNewTab = (relatedCaseId) => {
+    window.open(`/cases/${relatedCaseId}`, '_blank');
   };
 
   const [tabValue, setTabValue] = useState(0); // Default to Application tab
@@ -1566,13 +1571,26 @@ const CaseDetail = () => {
                             <TableCell>Case Type</TableCell>
                             <TableCell>Status</TableCell>
                             <TableCell>Created Date</TableCell>
-                            <TableCell>Actions</TableCell>
+                            {/* <TableCell>Actions</TableCell> */} {/* Removed Actions header */}
                           </TableRow>
                         </TableHead>
                         <TableBody>
                           {relatedCases.map((relatedCase) => (
                             <TableRow key={relatedCase.id}>
-                              <TableCell>{relatedCase.id}</TableCell>
+                              <TableCell>
+                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                  <Typography variant="body2" sx={{ mr: 0.5 }}>{relatedCase.id}</Typography>
+                                  <Tooltip title="View Case Details">
+                                    <IconButton
+                                      size="small"
+                                      onClick={() => handleViewRelatedCaseInNewTab(relatedCase.id)}
+                                      color="primary"
+                                    >
+                                      <VisibilityIcon fontSize="small" />
+                                    </IconButton>
+                                  </Tooltip>
+                                </Box>
+                              </TableCell>
                               <TableCell>{casesData[relatedCase.id].fileNo}</TableCell>
                               <TableCell>{casesData[relatedCase.id].caseType}</TableCell>
                               <TableCell>
@@ -1584,16 +1602,18 @@ const CaseDetail = () => {
                                 />
                               </TableCell>
                               <TableCell>{casesData[relatedCase.id].createdDate}</TableCell>
+                              {/*
                               <TableCell>
                                 <Button
                                   variant="outlined"
                                   size="small"
-                                  onClick={() => handleCaseChange(relatedCase.id)}
+                                  onClick={() => handleCaseChange(relatedCase.id)} // This would change view in current tab
                                   sx={{ height: '24px', fontSize: '0.75rem', minWidth: '60px' }}
                                 >
                                   View
                                 </Button>
                               </TableCell>
+                              */}
                             </TableRow>
                           ))}
                         </TableBody>
