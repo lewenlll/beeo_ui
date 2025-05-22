@@ -57,6 +57,43 @@ import VectorTileLayer from '@arcgis/core/layers/VectorTileLayer';
 import MapImageLayer from '@arcgis/core/layers/MapImageLayer';
 import LayerList from '@arcgis/core/widgets/LayerList';
 import './BuildingSearch.css';
+import AddIcon from '@mui/icons-material/Add';
+import CheckIcon from '@mui/icons-material/Check';
+
+// Icon Type Definitions
+const ICON_TYPES = {
+  DEFAULT: 'default', // Blue
+  CSV_MATCHED: 'csv_matched', // Green for single CSV match
+  CSV_MULTIPLE_MATCH: 'csv_multiple_match', // Orange for multiple CSV matches
+  SUGGESTED: 'suggested', // Red
+  SELECTED: 'selected', // Red (potentially larger or more prominent)
+  BOOKMARKED: 'bookmarked', // Purple
+};
+
+// Base64 Icon Data Constants
+const ICON_DATA_BLUE = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgd2lkdGg9IjI0cHgiIGhlaWdodD0iMjRweCI+PHBhdGggZD0iTTEyIDJDOC4xMyAyIDUgNS4xMyA1IDljMCA1LjI1IDcgMTMgNyAxM3M3LTcuNzUgNy0xM2MwLTMuODctMy4xMy03LTctN3ptMCA5LjVjLTEuMzggMC0yLjUtMS4xMi0yLjUtMi41czEuMTItMi41IDIuNS0yLjUgMi41IDEuMTIgMi41IDIuNS0xLjEyIDIuNS0yLjUtMi41eiIgZmlsbD0iYmx1ZSIvPjwvc3ZnPg==";
+const ICON_DATA_RED = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgd2lkdGg9IjI0cHgiIGhlaWdodD0iMjRweCI+PHBhdGggZD0iTTEyIDJDOC4xMyAyIDUgNS4xMyA1IDljMCA1LjI1IDcgMTMgNyAxM3M3LTcuNzUgNy0xM2MwLTMuODctMy4xMy03LTctN3ptMCA5LjVjLTEuMzggMC0yLjUtMS4xMi0yLjUtMi41czEuMTItMi41IDIuNS0yLjUgMi41IDEuMTIgMi41IDIuNS0xLjEyIDIuNS0yLjUtMi41eiIgZmlsbD0icmVkIi8+PC9zdmc+";
+const ICON_DATA_GREEN = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgd2lkdGg9IjI0cHgiIGhlaWdodD0iMjRweCI+PHBhdGggZD0iTTEyIDJDOC4xMyAyIDUgNS4xMyA1IDljMCA1LjI1IDcgMTMgNyAxM3M3LTcuNzUgNy0xM2MwLTMuODctMy4xMy03LTctN3ptMCA5LjVjLTEuMzggMC0yLjUtMS4xMi0yLjUtMi41czEuMTItMi41IDIuNS0yLjUgMi41IDEuMTIgMi41IDIuNS0xLjEyIDIuNS0yLjUtMi41eiIgZmlsbD0iZ3JlZW4iLz48L3N2Zz4=";
+const ICON_DATA_PURPLE = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgd2lkdGg9IjI0cHgiIGhlaWdodD0iMjRweCI+PHBhdGggZD0iTTEyIDJDOC4xMyAyIDUgNS4xMyA1IDljMCA1LjI1IDcgMTMgNyAxM3M3LTcuNzUgNy0xM2MwLTMuODctMy4xMy03LTctN3ptMCA5LjVjLTEuMzggMC0yLjUtMS4xMi0yLjUtMi41czEuMTItMi41IDIuNS0yLjUgMi41IDEuMTIgMi41IDIuNS0xLjEyIDIuNS0yLjUtMi41eiIgZmlsbD0icHVycGxlIi8+PC9zdmc+";
+const ICON_DATA_ORANGE = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgd2lkdGg9IjI0cHgiIGhlaWdodD0iMjRweCI+PHBhdGggZD0iTTEyIDJDOC4xMyAyIDUgNS4xMyA1IDljMCA1LjI1IDcgMTMgNyAxM3M3LTcuNzUgNy0xM2MwLTMuODctMy4xMy03LTctN3ptMCA5LjVjLTEuMzggMC0yLjUtMS4xMi0yLjUtMi41czEuMTItMi41IDIuNS0yLjUgMi41IDEuMTIgMi41IDIuNS0xLjEyIDIuNS0yLjUtMi41eiIgZmlsbD0ib3JhbmdlIi8+PC9zdmc+";
+
+// Helper function to get icon data based on type
+const getIconDataByType = (iconType) => {
+  switch (iconType) {
+    case ICON_TYPES.CSV_MATCHED:
+      return ICON_DATA_GREEN;
+    case ICON_TYPES.CSV_MULTIPLE_MATCH:
+      return ICON_DATA_ORANGE; // Return new orange icon data
+    case ICON_TYPES.SUGGESTED:
+    case ICON_TYPES.SELECTED:
+      return ICON_DATA_RED;
+    case ICON_TYPES.BOOKMARKED:
+      return ICON_DATA_PURPLE;
+    case ICON_TYPES.DEFAULT:
+    default:
+      return ICON_DATA_BLUE;
+  }
+};
 
 // Mock data for initial development
 const mockBuildings = [
@@ -112,22 +149,6 @@ const buildingTypes = [
   'Other'
 ];
 
-// Map marker icons
-const mapIcon = "data:image/png;base64,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";
-  const mapIcon2 = "data:image/png;base64,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";
-
-// Add a utility to tint a base64 PNG icon (for marker color)
-function colorizeIcon(base64, color) {
-  // For simplicity, use two static icons for now: blue and green
-  // In a real app, use SVG or canvas to tint dynamically
-  if (color === 'green') {
-    // Green marker icon (replace with your own or generate)
-    return "data:image/png;base64,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";
-  }
-  // Default: blue marker
-  return base64;
-}
-
 // Helper to build a unique label for an address suggestion
 function buildAddressLabel(address) {
   if (!address) return '';
@@ -143,12 +164,12 @@ function buildAddressLabel(address) {
   // Add estate name if available
   if (eng.EngEstate?.EstateName) engParts.push(`${eng.EngEstate.EstateName} Estate`);
   
-  // Add block information if available
-  if (eng.EngBlock) engParts.push(`Block ${eng.EngBlock}`);
+  // Add block information if available - fix [object Object] issue
+  if (eng.EngBlock) engParts.push(`Block ${typeof eng.EngBlock === 'string' ? eng.EngBlock : 'Unknown'}`);
   
   // Add floor and unit if available
-  if (eng.EngFloor) engParts.push(`Floor ${eng.EngFloor}`);
-  if (eng.EngUnit) engParts.push(`Unit ${eng.EngUnit}`);
+  if (eng.EngFloor) engParts.push(`Floor ${typeof eng.EngFloor === 'string' ? eng.EngFloor : 'Unknown'}`);
+  if (eng.EngUnit) engParts.push(`Unit ${typeof eng.EngUnit === 'string' ? eng.EngUnit : 'Unknown'}`);
   
   // Add street address with building number if available
   if (eng.EngStreet) {
@@ -170,7 +191,7 @@ function buildAddressLabel(address) {
   // Add district if available
   if (eng.EngDistrict?.DcDistrict) engParts.push(eng.EngDistrict.DcDistrict);
   
-  // Compose Chinese address with more details
+  // Chinese parts processing - fix [object Object] issue
   const chiParts = [];
   
   // Add building name if available
@@ -180,11 +201,11 @@ function buildAddressLabel(address) {
   if (chi.ChiEstate?.EstateName) chiParts.push(chi.ChiEstate.EstateName);
   
   // Add block information if available
-  if (chi.ChiBlock) chiParts.push(`${chi.ChiBlock}座`);
+  if (chi.ChiBlock) chiParts.push(`${typeof chi.ChiBlock === 'string' ? chi.ChiBlock : '未知'}座`);
   
   // Add floor and unit if available
-  if (chi.ChiFloor) chiParts.push(`${chi.ChiFloor}樓`);
-  if (chi.ChiUnit) chiParts.push(`${chi.ChiUnit}室`);
+  if (chi.ChiFloor) chiParts.push(`${typeof chi.ChiFloor === 'string' ? chi.ChiFloor : '未知'}樓`);
+  if (chi.ChiUnit) chiParts.push(`${typeof chi.ChiUnit === 'string' ? chi.ChiUnit : '未知'}室`);
   
   // Add street address with building number if available
   if (chi.ChiStreet) {
@@ -210,6 +231,7 @@ function buildAddressLabel(address) {
 }
 
 const BuildingSearch = () => {
+  // Existing state variables
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [selectedBuilding, setSelectedBuilding] = useState(null);
@@ -243,6 +265,16 @@ const BuildingSearch = () => {
   const [deleteBookmarkDialogOpen, setDeleteBookmarkDialogOpen] = useState(false);
   const [bookmarkToDelete, setBookmarkToDelete] = useState(null);
 
+  // New state variables for bookmark groups
+  const [bookmarkGroups, setBookmarkGroups] = useState([]);
+  const [selectedGroup, setSelectedGroup] = useState(null);
+  const [groupDialogOpen, setGroupDialogOpen] = useState(false);
+  const [groupName, setGroupName] = useState('');
+  const [editingGroup, setEditingGroup] = useState(null);
+
+  // Add at the top of the component, alongside other state declarations
+  const [selectedGroupsInDialog, setSelectedGroupsInDialog] = useState([]);
+
   // Create a safe version of setState that checks if component is still mounted
   const safeSetState = (setter) => (...args) => {
     if (componentMountedRef.current) {
@@ -257,45 +289,79 @@ const BuildingSearch = () => {
   const safeSetSearchResults = safeSetState(setSearchResults);
   const safeSetBookmarks = safeSetState(setBookmarks);
   const safeSetInitialLoadComplete = safeSetState(setInitialLoadComplete);
+  const safeSetBookmarkGroups = safeSetState(setBookmarkGroups);
 
-  // Load bookmarks from localStorage on initial render
+  // Load bookmarks and bookmark groups from sessionStorage on initial render
   useEffect(() => {
     try {
-      const savedBookmarks = localStorage.getItem('buildingBookmarks');
+      const savedBookmarks = sessionStorage.getItem('buildingBookmarks');
       if (savedBookmarks) {
         safeSetBookmarks(JSON.parse(savedBookmarks));
       }
+      
+      const savedGroups = sessionStorage.getItem('buildingBookmarkGroups');
+      if (savedGroups) {
+        safeSetBookmarkGroups(JSON.parse(savedGroups));
+      }
     } catch (error) {
-      console.error('Error loading bookmarks from localStorage:', error);
+      console.error('Error loading bookmarks from sessionStorage:', error);
     }
-  }, [safeSetBookmarks]);
+  }, [safeSetBookmarks, safeSetBookmarkGroups]);
 
-  // Modify the useEffect for saving bookmarks to localStorage to ensure they persist properly
+  // Update the useEffect for bookmarks storage to prevent re-adding after deletion
   useEffect(() => {
-    if (bookmarks && bookmarks.length > 0) {
-      localStorage.setItem('buildingBookmarks', JSON.stringify(bookmarks));
-    } else if (bookmarks && bookmarks.length === 0 && localStorage.getItem('buildingBookmarks')) {
-      // Only clear storage if bookmarks were explicitly cleared
-      localStorage.removeItem('buildingBookmarks');
+    // Only if component is mounted to prevent memory leaks
+    if (componentMountedRef.current) {
+      try {
+        if (bookmarks && bookmarks.length > 0) {
+          sessionStorage.setItem('buildingBookmarks', JSON.stringify(bookmarks));
+        } else if (bookmarks && bookmarks.length === 0) {
+          // Always remove storage when bookmarks are empty - don't check if it exists first
+          sessionStorage.removeItem('buildingBookmarks');
+        }
+      } catch (error) {
+        console.error("Error syncing bookmarks with sessionStorage:", error);
+      }
     }
   }, [bookmarks]);
 
+  // Update the useEffect for bookmark groups storage
+  useEffect(() => {
+    // Only if component is mounted to prevent memory leaks
+    if (componentMountedRef.current) {
+      try {
+        if (bookmarkGroups && bookmarkGroups.length > 0) {
+          sessionStorage.setItem('buildingBookmarkGroups', JSON.stringify(bookmarkGroups));
+        } else if (bookmarkGroups && bookmarkGroups.length === 0) {
+          // Always remove storage when groups are empty - don't check if it exists first
+          sessionStorage.removeItem('buildingBookmarkGroups');
+        }
+      } catch (error) {
+        console.error("Error syncing bookmark groups with sessionStorage:", error);
+      }
+    }
+  }, [bookmarkGroups]);
+
   // Function to create a unique identifier for a building
   const getUniqueId = (building) => {
-    // Use GeoAddress as the primary unique identifier if available
-    if (building.geoAddress) {
-      return building.geoAddress;
+    // Add a timestamp-based uniqueId if not already present
+    if (!building.uniqueId) {
+      // Use GeoAddress as the primary unique identifier if available
+      if (building.geoAddress) {
+        return `geo_${building.geoAddress}`;
+      }
+      // Fallback 1: Use coordinates for buildings without GeoAddress
+      else if (building.coordinates && building.coordinates.length === 2) {
+        return `loc_${building.name || 'unnamed'}_${building.coordinates[0]}_${building.coordinates[1]}_${Date.now()}`;
+      }
+      // Fallback 2: Use name + address + timestamp
+      else if (building.address && building.name) {
+        return `addr_${building.name}_${building.address}_${Date.now()}`;
+      }
+      // Last fallback to original id + timestamp
+      return `id_${building.id || 'unknown'}_${Date.now()}`;
     }
-    // Fallback 1: Use coordinates for buildings without GeoAddress
-    else if (building.coordinates && building.coordinates.length === 2) {
-      return `${building.name}-${building.coordinates[0]}-${building.coordinates[1]}`;
-    }
-    // Fallback 2: Use name + address
-    else if (building.address && building.name) {
-      return `${building.name}-${building.address}`;
-    }
-    // Last fallback to original id
-    return building.id;
+    return building.uniqueId;
   };
 
   // Function to open bookmark dialog for a building
@@ -321,6 +387,13 @@ const BuildingSearch = () => {
     
     // Store the building data for the bookmark dialog
     sessionStorage.setItem('bookmarkBuilding', JSON.stringify(buildingWithUniqueId));
+    
+    // Initialize the selected groups with any groups the building is already in
+    const initialSelectedGroups = bookmarkGroups
+      .filter(group => group.bookmarks.some(b => getUniqueId(b) === uniqueId))
+      .map(group => group.id);
+    
+    setSelectedGroupsInDialog(initialSelectedGroups);
     
     // Open the dialog
     setBookmarkDialogOpen(true);
@@ -361,14 +434,31 @@ const BuildingSearch = () => {
   
   // Function to clear all bookmarks
   const clearAllBookmarks = () => {
-    // Create a new empty array to ensure state update
+    // Create a new empty array for bookmarks
     safeSetBookmarks([]);
-    localStorage.removeItem('buildingBookmarks');
+    
+    // Also clear bookmarks from all groups
+    const updatedGroups = bookmarkGroups.map(group => ({
+      ...group,
+      bookmarks: [] // Clear all bookmarks in each group
+    }));
+    
+    // Update groups state
+    safeSetBookmarkGroups(updatedGroups);
+    
+    // Clear sessionStorage directly to prevent race conditions
+    try {
+      sessionStorage.removeItem('buildingBookmarks');
+    } catch (error) {
+      console.error("Error clearing bookmarks from sessionStorage:", error);
+    }
     
     // Also update map if layer is visible
     if (showBookmarkedBuildingsLayer) {
       setTimeout(() => {
-        displayBookmarkedBuildingsOnMap([]);
+        if (componentMountedRef.current) {
+          displayBookmarkedBuildingsOnMap([]);
+        }
       }, 300);
     }
     
@@ -376,46 +466,122 @@ const BuildingSearch = () => {
     setDeleteBookmarkDialogOpen(false);
   };
 
-  // Handle saving bookmark from dialog
+  // Update handleConfirmBookmark to handle selected groups from dialog state
   const handleConfirmBookmark = () => {
-    // Get the building data from session storage
-    const buildingData = JSON.parse(sessionStorage.getItem('bookmarkBuilding'));
-    
-    if (!buildingData) {
-      setBookmarkDialogOpen(false);
-      return;
-    }
-    
-    if (editingBookmark) {
-      // Update existing bookmark
-      const updatedBookmarks = bookmarks.map(bookmark => {
-        if (getUniqueId(bookmark) === getUniqueId(editingBookmark)) {
-          return { 
-            ...bookmark, 
-            customName: bookmarkName 
-          };
-        }
-        return bookmark;
-      });
+    try {
+      // Get the building data from session storage
+      const buildingData = JSON.parse(sessionStorage.getItem('bookmarkBuilding'));
       
+      if (!buildingData) {
+        setBookmarkDialogOpen(false);
+        return;
+      }
+      
+      let updatedBookmarks;
+      
+      if (editingBookmark) {
+        // Update existing bookmark
+        updatedBookmarks = bookmarks.map(bookmark => {
+          if (getUniqueId(bookmark) === getUniqueId(editingBookmark)) {
+            return { 
+              ...bookmark, 
+              customName: bookmarkName 
+            };
+          }
+          return bookmark;
+        });
+      } else {
+        // Add new bookmark with custom name and ensure uniqueId is set
+        const newBookmark = {
+          ...buildingData,
+          customName: bookmarkName,
+          uniqueId: getUniqueId(buildingData),
+          timestamp: Date.now() // Add timestamp for additional uniqueness
+        };
+        
+        // Create a completely new array to ensure state update is detected
+        updatedBookmarks = [...bookmarks, newBookmark];
+      }
+      
+      // Important: Update sessionStorage BEFORE updating React state
+      // This ensures storage is consistent when state triggers re-render
+      try {
+        sessionStorage.setItem('buildingBookmarks', JSON.stringify(updatedBookmarks));
+      } catch (error) {
+        console.error("Error saving bookmarks to sessionStorage:", error);
+      }
+      
+      // Now update the React state with the new bookmarks array
       safeSetBookmarks(updatedBookmarks);
-    } else {
-      // Add new bookmark with custom name
-      const newBookmark = {
-        ...buildingData,
-        customName: bookmarkName
-      };
-      safeSetBookmarks([...bookmarks, newBookmark]);
-    }
-    
-    setBookmarkDialogOpen(false);
-    sessionStorage.removeItem('bookmarkBuilding');
-    
-    // If bookmark layer is visible, update it
-    if (showBookmarkedBuildingsLayer) {
-      setTimeout(() => {
-        displayBookmarkedBuildingsOnMap([...bookmarks, buildingData]);
-      }, 300);
+      
+      // Handle group assignments after bookmark is saved
+      if (selectedGroupsInDialog.length > 0 && buildingData) {
+        // Create a copy of the current groups
+        const buildingUniqueId = getUniqueId(buildingData);
+        const updatedGroups = [...bookmarkGroups];
+        let groupsChanged = false;
+        
+        // Process group memberships separately to avoid race conditions
+        updatedGroups.forEach((group, index) => {
+          const isSelected = selectedGroupsInDialog.includes(group.id);
+          const isCurrentlyInGroup = group.bookmarks.some(b => getUniqueId(b) === buildingUniqueId);
+          
+          // Only update groups that need changes
+          if (isSelected !== isCurrentlyInGroup) {
+            groupsChanged = true;
+            
+            if (isSelected) {
+              // Add to group
+              updatedGroups[index] = {
+                ...group,
+                bookmarks: [...group.bookmarks, {
+                  ...buildingData,
+                  customName: bookmarkName,
+                  uniqueId: buildingUniqueId,
+                  timestamp: Date.now()
+                }]
+              };
+            } else {
+              // Remove from group
+              updatedGroups[index] = {
+                ...group,
+                bookmarks: group.bookmarks.filter(b => getUniqueId(b) !== buildingUniqueId)
+              };
+            }
+          }
+        });
+        
+        // Only update groups state if changes were made
+        if (groupsChanged) {
+          // Update sessionStorage first
+          try {
+            sessionStorage.setItem('buildingBookmarkGroups', JSON.stringify(updatedGroups));
+          } catch (error) {
+            console.error("Error saving bookmark groups to sessionStorage:", error);
+          }
+          
+          // Then update React state
+          safeSetBookmarkGroups(updatedGroups);
+        }
+      }
+      
+      // Close dialog and clean up
+      setBookmarkDialogOpen(false);
+      sessionStorage.removeItem('bookmarkBuilding');
+      setSelectedGroupsInDialog([]);
+      
+      // If bookmark layer is visible, update it with delay to ensure state is updated
+      if (showBookmarkedBuildingsLayer) {
+        setTimeout(() => {
+          if (componentMountedRef.current) {
+            displayBookmarkedBuildingsOnMap(updatedBookmarks);
+          }
+        }, 300);
+      }
+    } catch (error) {
+      console.error("Error saving bookmark:", error);
+      // Close dialog even on error to prevent UI getting stuck
+      setBookmarkDialogOpen(false);
     }
   };
 
@@ -428,16 +594,45 @@ const BuildingSearch = () => {
   const handleDeleteBookmark = () => {
     if (bookmarkToDelete) {
       const uniqueId = getUniqueId(bookmarkToDelete);
+      
+      // Create a completely new array for bookmarks
       const updatedBookmarks = bookmarks.filter(b => getUniqueId(b) !== uniqueId);
+      
+      // Create a completely new array for groups, ensuring any references to the deleted bookmark are removed
+      const updatedGroups = bookmarkGroups.map(group => {
+        // Check if this group contains the building
+        const containsBuilding = group.bookmarks.some(b => getUniqueId(b) === uniqueId);
+        
+        if (containsBuilding) {
+          // Return group with the building filtered out
+          return {
+            ...group,
+            bookmarks: group.bookmarks.filter(b => getUniqueId(b) !== uniqueId)
+          };
+        }
+        
+        // Otherwise return the group unchanged
+        return group;
+      });
+      
+      // Batch state updates to avoid race conditions
+      // First update the bookmarks
       safeSetBookmarks(updatedBookmarks);
       
-      // Update bookmark layer if visible
+      // Then update groups
+      safeSetBookmarkGroups(updatedGroups);
+      
+      // Update bookmark layer if visible - with delay to ensure state is updated first
       if (showBookmarkedBuildingsLayer) {
         setTimeout(() => {
-          displayBookmarkedBuildingsOnMap(updatedBookmarks);
+          if (componentMountedRef.current) {
+            displayBookmarkedBuildingsOnMap(updatedBookmarks);
+          }
         }, 300);
       }
     }
+    
+    // Close dialog and cleanup
     setDeleteBookmarkDialogOpen(false);
     setBookmarkToDelete(null);
   };
@@ -471,21 +666,23 @@ const BuildingSearch = () => {
         spatialReference: new SpatialReference({ wkid: 2326 })
       });
       
-      // Use a special icon or color for bookmarked buildings
+      // Use green icon for bookmarked buildings - same base icon, green color
       const symbol = new PictureMarkerSymbol({
-        url: colorizeIcon(mapIcon, 'green'),
+        url: getIconDataByType(ICON_TYPES.BOOKMARKED),
         width: "32px",
         height: "32px",
         yoffset: 16
       });
       
       const displayName = building.customName || building.name || "Bookmarked Building";
+      const uniqueId = getUniqueId(building);
       
       const graphic = new Graphic({
         geometry: point,
         symbol: symbol,
         attributes: {
           ...building,
+          uniqueId: uniqueId, // Ensure uniqueId is set
           isBookmarked: true,
           displayName: displayName
         },
@@ -610,14 +807,14 @@ const BuildingSearch = () => {
               url: "https://portal.csdi.gov.hk/server/rest/services/open/landsd_rcd_1637211194312_35158/MapServer/0",
               outFields: ["*"],
               objectIdField: "OBJECTID",
-              visible: false, // Set default visibility to false
-              definitionExpression: "1=0", // Initially show no features (empty layer)
+              visible: false, // Set to true for visibility
+              definitionExpression: "1=1", // Show all features
               editable: false, // Explicitly disable editing capabilities
               renderer: {
                 type: "unique-value",
                 field: "status", // You may want to update this field to match the actual field in the CSDI building layer
                 defaultSymbol: new PictureMarkerSymbol({
-                  url: mapIcon,
+                  url: getIconDataByType(ICON_TYPES.DEFAULT),
                   width: "24px",
                   height: "24px",
                   yoffset: 12
@@ -626,7 +823,7 @@ const BuildingSearch = () => {
                   {
                     value: "registered",
                     symbol: new PictureMarkerSymbol({
-                      url: mapIcon2, // Green icon for registered buildings
+                      url: getIconDataByType(ICON_TYPES.CSV_MATCHED),
                       width: "24px",
                       height: "24px",
                       yoffset: 12
@@ -636,7 +833,7 @@ const BuildingSearch = () => {
                   {
                     value: "unregistered",
                     symbol: new PictureMarkerSymbol({
-                      url: mapIcon, // Blue icon for unregistered buildings
+                      url: getIconDataByType(ICON_TYPES.DEFAULT),
                       width: "24px",
                       height: "24px",
                       yoffset: 12
@@ -1166,11 +1363,38 @@ const BuildingSearch = () => {
         // Get GeoAddress as primary identifier
         const geoAddress = address.Address?.PremisesAddress?.GeoAddress || '';
         
-        // CSV match logic
-        const csvMatch = csvData.find(csvItem =>
-          csvItem.EngName === address.Address?.PremisesAddress?.EngPremisesAddress?.BuildingName ||
-          csvItem.ChiName === address.Address?.PremisesAddress?.ChiPremisesAddress?.BuildingName
-        );
+        // CSV match logic - Updated to match by Easting and Northing
+        const apiEastingStr = address.Address?.PremisesAddress?.GeospatialInformation?.Easting;
+        const apiNorthingStr = address.Address?.PremisesAddress?.GeospatialInformation?.Northing;
+
+        const apiEasting = parseInt(apiEastingStr?.replace(/,/g, ''), 10);
+        const apiNorthing = parseInt(apiNorthingStr?.replace(/,/g, ''), 10);
+
+        let matchingCsvRows = [];
+        if (!isNaN(apiEasting) && !isNaN(apiNorthing)) {
+          matchingCsvRows = csvData.filter(csvItem => 
+            !isNaN(csvItem.Easting) && !isNaN(csvItem.Northing) &&
+            Math.abs(csvItem.Easting - apiEasting) <= 1 && 
+            Math.abs(csvItem.Northing - apiNorthing) <= 1
+          );
+        } else {
+          // If API coordinates are not valid, fall back to name matching or no match
+          // For now, we will consider it no match by coordinates
+          // Alternatively, you could re-introduce name matching here as a fallback:
+          // const buildingEngName = address.Address?.PremisesAddress?.EngPremisesAddress?.BuildingName;
+          // const buildingChiName = address.Address?.PremisesAddress?.ChiPremisesAddress?.BuildingName;
+          // matchingCsvRows = csvData.filter(csvItem =>
+          //  (buildingEngName && csvItem.EngName === buildingEngName) ||
+          //  (buildingChiName && csvItem.ChiName === buildingChiName)
+          // );
+        }
+
+        let csvMatchType = 'NONE';
+        if (matchingCsvRows.length === 1) {
+          csvMatchType = 'SINGLE';
+        } else if (matchingCsvRows.length > 1) {
+          csvMatchType = 'MULTIPLE';
+        }
         
         return {
           label,
@@ -1198,8 +1422,12 @@ const BuildingSearch = () => {
             latitude: address.Address?.PremisesAddress?.GeospatialInformation?.Latitude || '',
             longitude: address.Address?.PremisesAddress?.GeospatialInformation?.Longitude || '',
             geoAddress: geoAddress,
-            hasCsvMatch: !!csvMatch,
-            csvData: csvMatch
+            matchingCsvRows: matchingCsvRows, // Store all matches
+            csvMatchType: csvMatchType, // Store the type of match
+            // Keep COCR_No from the first match if needed for display, or adapt display logic
+            COCR_No: matchingCsvRows.length > 0 ? matchingCsvRows[0].COCR_No : null
+            // Removed: hasCsvMatch: !!csvMatch,
+            // Removed: csvData: csvMatch 
           }
         };
       });
@@ -1270,9 +1498,14 @@ const BuildingSearch = () => {
       spatialReference: new SpatialReference({ wkid: 2326 })
     });
 
-    // Create marker symbol for selected building (Reverted to PictureMarkerSymbol)
+    // Create marker symbol for selected building - explicitly use RED for selected/suggested buildings
     const selectedSymbol = new PictureMarkerSymbol({
-      url: getMarkerIcon(building.hasCsvMatch),
+      url: getIconDataByType(
+        isBookmarked(building) ? ICON_TYPES.BOOKMARKED :
+        building.csvMatchType === 'MULTIPLE' ? ICON_TYPES.CSV_MULTIPLE_MATCH :
+        building.csvMatchType === 'SINGLE' ? ICON_TYPES.CSV_MATCHED :
+        ICON_TYPES.SELECTED
+      ),
       width: "32px",
       height: "32px",
       yoffset: 16
@@ -1365,9 +1598,14 @@ const BuildingSearch = () => {
         spatialReference: new SpatialReference({ wkid: 2326 })
       });
 
-      // Reverted to PictureMarkerSymbol for updateMapMarkers
+      // Always use red for suggested buildings in search results
       const symbol = new PictureMarkerSymbol({
-        url: building.hasCsvMatch ? mapIcon2 : mapIcon, // Or use getMarkerIcon if preferred for consistency
+        url: getIconDataByType(
+          isBookmarked(building) ? ICON_TYPES.BOOKMARKED :
+          building.csvMatchType === 'MULTIPLE' ? ICON_TYPES.CSV_MULTIPLE_MATCH :
+          building.csvMatchType === 'SINGLE' ? ICON_TYPES.CSV_MATCHED :
+          ICON_TYPES.SUGGESTED
+        ),
         width: "24px",
         height: "24px",
         yoffset: 12
@@ -1451,27 +1689,63 @@ const BuildingSearch = () => {
 
   // CSV parsing function
   const parseCSV = (csv) => {
-    return csv.split('\n')
+    // Remove debug logging to clean up console
+    // console.log("CSV Headers:", csv.split('\n')[0]);
+    const rows = csv.split('\n')
       .slice(1) // Skip header row
-      .filter(row => row.trim()) // Filter empty rows
-      .map(row => {
-        const columns = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
-        return {
-          EngName: columns[0]?.replace(/^"|"$/g, ''),
-          ChiName: columns[1]?.replace(/^"|"$/g, ''),
-          EngAddress: columns[2]?.replace(/^"|"$/g, ''),
-          ChiAddress: columns[3]?.replace(/^"|"$/g, ''),
-          COCR_No: columns[4]?.replace(/^"|"$/g, ''),
-          Easting: Number(columns[9]?.replace(/\D/g, '') || 0),
-          Northing: Number(columns[12]?.replace(/\D/g, '') || 0)
-        };
-      });
-  };
-
-  // Update marker logic to use colorized icon
-  const getMarkerIcon = (hasCsvMatch) => {
-    // Use blue for normal, green for COCR
-    return colorizeIcon(mapIcon, hasCsvMatch ? 'green' : 'blue');
+      .filter(row => row.trim()); // Filter empty rows
+    
+    // console.log(`Total CSV rows: ${rows.length}`);
+    
+    // Clean up debug statements
+    // rows.slice(0, 5).forEach((row, index) => {
+    //   console.log(`Row ${index + 1}:`, row);
+    // });
+    
+    return rows.map((row, rowIndex) => {
+      // Split by comma but respect quoted fields
+      let inQuotes = false;
+      let currentToken = '';
+      const columns = [];
+      
+      // Manual CSV parsing to handle quoted fields correctly
+      for (let i = 0; i < row.length; i++) {
+        const char = row[i];
+        
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          columns.push(currentToken);
+          currentToken = '';
+        } else {
+          currentToken += char;
+        }
+      }
+      
+      // Add the last token
+      columns.push(currentToken);
+      
+      // Clean up quotes from each column value
+      const cleanedColumns = columns.map(col => col.replace(/^"|"$/g, ''));
+      
+      // Debug specific problematic rows if needed
+      // if (cleanedColumns[9]?.includes('831989') || cleanedColumns[12]?.includes('825021')) {
+      //   console.log(`Fixed parsing for row ${rowIndex + 1}:`);
+      //   console.log(`  Easting (index 9): "${cleanedColumns[9]}"`);
+      //   console.log(`  Northing (index 12): "${cleanedColumns[12]}"`);
+      // }
+      
+      return {
+        EngName: cleanedColumns[0],
+        ChiName: cleanedColumns[1],
+        EngAddress: cleanedColumns[2],
+        ChiAddress: cleanedColumns[3],
+        COCR_No: cleanedColumns[4],
+        // Use correct columns for coordinates based on the raw data
+        Easting: parseInt(cleanedColumns[9]?.replace(/[\s,]/g, ''), 10),
+        Northing: parseInt(cleanedColumns[12]?.replace(/[\s,]/g, ''), 10)
+      };
+    });
   };
 
   // Update the showBookmarks state management to ensure we don't accidentally modify bookmarks
@@ -1479,6 +1753,156 @@ const BuildingSearch = () => {
     setShowBookmarks(prevState => !prevState);
     // No bookmark modifications here, just UI toggle
   };
+
+  // Function to create a new bookmark group
+  const createBookmarkGroup = () => {
+    setGroupName('New Group');
+    setEditingGroup(null);
+    setGroupDialogOpen(true);
+  };
+  
+  // Function to edit an existing bookmark group
+  const editBookmarkGroup = (group) => {
+    setGroupName(group.name);
+    setEditingGroup(group);
+    setGroupDialogOpen(true);
+  };
+  
+  // Function to handle saving a new or edited bookmark group
+  const handleSaveGroup = () => {
+    try {
+      let updatedGroups;
+      const newGroupId = `group_${Date.now()}`;
+      
+      if (editingGroup) {
+        // Update existing group
+        updatedGroups = bookmarkGroups.map(group => {
+          if (group.id === editingGroup.id) {
+            return {
+              ...group,
+              name: groupName
+            };
+          }
+          return group;
+        });
+      } else {
+        // Create new group with a stable ID
+        const newGroup = {
+          id: newGroupId,
+          name: groupName,
+          bookmarks: []
+        };
+        // Create a completely new array with the new group appended
+        updatedGroups = [...bookmarkGroups, newGroup];
+      }
+      
+      // Important: Update sessionStorage BEFORE updating React state
+      // This ensures storage is consistent when state triggers re-render
+      try {
+        sessionStorage.setItem('buildingBookmarkGroups', JSON.stringify(updatedGroups));
+      } catch (error) {
+        console.error("Error saving groups to sessionStorage:", error);
+      }
+      
+      // Now update the React state with the new groups array
+      safeSetBookmarkGroups(updatedGroups);
+      
+      // Reset dialog state
+      setGroupDialogOpen(false);
+      setGroupName('');
+      setEditingGroup(null);
+      
+    } catch (error) {
+      console.error("Error creating/editing bookmark group:", error);
+    }
+  };
+  
+  // Function to delete a bookmark group
+  const deleteBookmarkGroup = (groupId) => {
+    // Create a completely new array to ensure React detects the state change
+    const updatedGroups = bookmarkGroups.filter(group => group.id !== groupId);
+    
+    // Set with new reference
+    safeSetBookmarkGroups([...updatedGroups]);
+    
+    // Update sessionStorage immediately
+    try {
+      if (updatedGroups.length > 0) {
+        sessionStorage.setItem('buildingBookmarkGroups', JSON.stringify(updatedGroups));
+      } else {
+        sessionStorage.removeItem('buildingBookmarkGroups');
+      }
+    } catch (error) {
+      console.error("Error updating bookmark groups in sessionStorage:", error);
+    }
+    
+    // If we just deleted the selected group, clear the selection
+    if (selectedGroup === groupId) {
+      setSelectedGroup(null);
+    }
+  };
+  
+  // Function to get all groups that contain a building
+  const getBuildingGroups = (building) => {
+    const buildingUniqueId = getUniqueId(building);
+    return bookmarkGroups.filter(group => 
+      group.bookmarks.some(b => getUniqueId(b) === buildingUniqueId)
+    );
+  };
+
+  // Add this effect to ensure clean state when dialog closes
+  useEffect(() => {
+    if (!bookmarkDialogOpen) {
+      setSelectedGroupsInDialog([]);
+    }
+  }, [bookmarkDialogOpen]);
+
+  // Add this effect to handle group selection updates in a batched manner
+  // using a ref to track pending updates
+  const pendingGroupSelectionRef = useRef(null);
+
+  // Use this function to update selected groups in dialog
+  const updateSelectedGroupsInDialog = (action) => {
+    // Store the action and process it in the next render cycle
+    pendingGroupSelectionRef.current = action;
+    // Force a re-render to process the action
+    setSelectedGroupsInDialog(prev => [...prev]);
+  };
+
+  // Process pending group selection updates
+  useEffect(() => {
+    if (pendingGroupSelectionRef.current) {
+      const action = pendingGroupSelectionRef.current;
+      pendingGroupSelectionRef.current = null;
+      
+      // Process the action - set the state directly here
+      setSelectedGroupsInDialog(action);
+    }
+  }, [selectedGroupsInDialog]);
+
+  // Add a complete cleanup effect that runs once on component mount
+  useEffect(() => {
+    // Clear all bookmark data when component mounts to ensure a fresh state
+    try {
+      // Clear both bookmarks and groups from sessionStorage
+      sessionStorage.removeItem('buildingBookmarks');
+      sessionStorage.removeItem('buildingBookmarkGroups');
+      
+      // Initialize empty arrays for both bookmarks and groups
+      safeSetBookmarks([]);
+      safeSetBookmarkGroups([]);
+    } catch (error) {
+      console.error('Error clearing bookmark data:', error);
+    }
+    
+    // Also check and clear any remaining localStorage items (in case they were previously saved there)
+    try {
+      localStorage.removeItem('buildingBookmarks');
+      localStorage.removeItem('buildingBookmarkGroups');
+    } catch (error) {
+      console.error('Error clearing localStorage bookmark data:', error);
+    }
+  }, []); // Empty dependency array ensures this runs only once on mount
 
   return (
     <Box sx={{ display: 'flex', height: '100vh' }}>
@@ -1561,39 +1985,44 @@ const BuildingSearch = () => {
                       }
                     }}
                     filterOptions={(options) => options}
-                    renderOption={(props, option) => (
-                      <li {...props}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                          <LocationOnIcon sx={{ color: 'primary.main', mr: 1, fontSize: '1.1rem' }} />
-                          <Box sx={{ flexGrow: 1 }}>
-                            {option.label}
-                            {option.data?.hasCsvMatch && (
-                              <Chip 
-                                size="small" 
-                                label="COCR Registered" 
-                                color="primary" 
-                                sx={{ ml: 1, height: 20, fontSize: '0.7rem' }} 
-                              />
+                    renderOption={(props, option) => {
+                      // Extract key from props to pass it directly (fix for React warning)
+                      const { key, ...otherProps } = props;
+                      
+                      return (
+                        <li key={key} {...otherProps}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                            <LocationOnIcon sx={{ color: 'primary.main', mr: 1, fontSize: '1.1rem' }} />
+                            <Box sx={{ flexGrow: 1 }}>
+                              {option.label}
+                              {(option.data?.csvMatchType === 'SINGLE' || option.data?.csvMatchType === 'MULTIPLE') && (
+                                <Chip 
+                                  size="small" 
+                                  label="COCR Registered" 
+                                  color="primary" 
+                                  sx={{ ml: 1, height: 20, fontSize: '0.7rem' }} 
+                                />
+                              )}
+                            </Box>
+                            {option.data && (
+                              <Tooltip title={isBookmarked(option.data) ? "Remove bookmark" : "Add bookmark"}>
+                                <IconButton 
+                                  size="small" 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleBookmark(option.data);
+                                  }}
+                                >
+                                  {isBookmarked(option.data) ? 
+                                    <BookmarkIcon color="primary" fontSize="small" /> : 
+                                    <BookmarkBorderIcon fontSize="small" />}
+                                </IconButton>
+                              </Tooltip>
                             )}
                           </Box>
-                          {option.data && (
-                            <Tooltip title={isBookmarked(option.data) ? "Remove bookmark" : "Add bookmark"}>
-                              <IconButton 
-                                size="small" 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  toggleBookmark(option.data);
-                                }}
-                              >
-                                {isBookmarked(option.data) ? 
-                                  <BookmarkIcon color="primary" fontSize="small" /> : 
-                                  <BookmarkBorderIcon fontSize="small" />}
-                              </IconButton>
-                            </Tooltip>
-                          )}
-                        </Box>
-                      </li>
-                    )}
+                        </li>
+                      );
+                    }}
                     renderInput={(params) => (
                       <TextField
                         {...params}
@@ -1675,8 +2104,8 @@ const BuildingSearch = () => {
               }}>
                 <Box sx={{ p: 2 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Typography variant="h6" component="div">
-                      <BookmarksIcon sx={{ verticalAlign: 'middle', mr: 1 }} />
+                    <Typography variant="subtitle1" component="div" sx={{ display: 'flex', alignItems: 'center' }}>
+                      <BookmarksIcon sx={{ verticalAlign: 'middle', mr: 1, fontSize: '1.1rem' }} />
                       Bookmarked Buildings ({bookmarks.length})
                     </Typography>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -1708,74 +2137,134 @@ const BuildingSearch = () => {
                     </Box>
                   </Box>
                   
+                  {/* Add Group Management UI */}
+                  <Box sx={{ mb: 2 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                      <Typography variant="subtitle2">
+                        Bookmark Groups
+                      </Typography>
+                      <Button
+                        size="small"
+                        startIcon={<AddIcon />}
+                        onClick={createBookmarkGroup}
+                        variant="outlined"
+                      >
+                        New Group
+                      </Button>
+                    </Box>
+                    
+                    {bookmarkGroups.length === 0 ? (
+                      <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem', my: 1 }}>
+                        No groups created yet. Create groups to organize your bookmarks.
+                      </Typography>
+                    ) : (
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 1 }}>
+                        {bookmarkGroups.map((group, index) => (
+                          <Chip
+                            key={`group_display_${group.id}_${index}`} // Use composite key for stability
+                            label={`${group.name} (${group.bookmarks.length})`}
+                            size="small"
+                            variant={selectedGroup === group.id ? "filled" : "outlined"}
+                            color="primary"
+                            onClick={() => setSelectedGroup(selectedGroup === group.id ? null : group.id)}
+                            onDelete={() => deleteBookmarkGroup(group.id)}
+                            sx={{ m: 0.5 }}
+                          />
+                        ))}
+                      </Box>
+                    )}
+                  </Box>
+                  
                   {bookmarks.length === 0 ? (
                     <Typography variant="body2" color="text.secondary" sx={{ p: 2, textAlign: 'center' }}>
                       No bookmarked buildings yet. Click the bookmark icon to save buildings for quick access.
                     </Typography>
                   ) : (
                     <List sx={{ maxHeight: '300px', overflow: 'auto' }}>
-                      {bookmarks.map((building) => (
-                        <ListItem 
-                          key={building.uniqueId || building.id}
-                          sx={{ 
-                            borderBottom: '1px solid #eee',
-                            '&:last-child': { borderBottom: 'none' }
-                          }}
-                        >
-                          <ListItemIcon>
-                            <LocationOnIcon color="primary" />
-                          </ListItemIcon>
-                          <ListItemText 
-                            primary={building.customName || building.name || building.id}
-                            secondary={
-                              <Box component="span">
-                                {building.address}
-                                {building.hasCsvMatch && (
-                                  <Chip 
-                                    size="small" 
-                                    label="COCR Registered" 
-                                    color="primary" 
-                                    sx={{ ml: 1, height: 20, fontSize: '0.7rem' }} 
-                                  />
-                                )}
-                              </Box>
-                            }
-                            primaryTypographyProps={{ fontWeight: 'medium' }}
-                          />
-                          <Box sx={{ display: 'flex', gap: 1 }}>
-                            <Tooltip title="View on map">
-                              <IconButton 
-                                size="small" 
-                                color="primary"
-                                onClick={() => handleBuildingSelect(building)}
-                              >
-                                <SearchIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Edit bookmark name">
-                              <IconButton 
-                                size="small" 
-                                color="primary"
-                                onClick={() => editBookmark(building)}
-                              >
-                                <EditIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Remove bookmark">
-                              <IconButton 
-                                size="small" 
-                                color="error"
-                                onClick={() => {
-                                  setBookmarkToDelete(building);
-                                  setDeleteBookmarkDialogOpen(true);
-                                }}
-                              >
-                                <BookmarkIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                          </Box>
-                        </ListItem>
-                      ))}
+                      {/* Filter bookmarks by selected group if needed */}
+                      {bookmarks
+                        .filter(building => {
+                          if (!selectedGroup) return true;
+                          const buildingUniqueId = getUniqueId(building);
+                          const group = bookmarkGroups.find(g => g.id === selectedGroup);
+                          return group && group.bookmarks.some(b => getUniqueId(b) === buildingUniqueId);
+                        })
+                        .map((building, index) => (
+                          <ListItem 
+                            key={`bookmark_${building.uniqueId || building.id}_${index}_${building.timestamp || 0}`}
+                            sx={{ 
+                              borderBottom: '1px solid #eee',
+                              '&:last-child': { borderBottom: 'none' }
+                            }}
+                          >
+                            <ListItemIcon>
+                              <LocationOnIcon color="primary" />
+                            </ListItemIcon>
+                            <ListItemText 
+                              primary={building.customName || building.name || building.id}
+                              secondary={
+                                <Box component="span">
+                                  {building.address}
+                                  {(building.csvMatchType === 'SINGLE' || building.csvMatchType === 'MULTIPLE') && (
+                                    <Chip 
+                                      size="small" 
+                                      label="COCR Registered" 
+                                      color="primary" 
+                                      sx={{ ml: 1, height: 20, fontSize: '0.7rem' }} 
+                                    />
+                                  )}
+                                  {/* Display groups this building belongs to */}
+                                  {getBuildingGroups(building).length > 0 && (
+                                    <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                      {getBuildingGroups(building).map((group, groupIndex) => (
+                                        <Chip
+                                          key={`group_chip_${group.id}_${groupIndex}`}
+                                          label={group.name}
+                                          size="small"
+                                          variant="outlined"
+                                          sx={{ height: 20, fontSize: '0.7rem' }}
+                                        />
+                                      ))}
+                                    </Box>
+                                  )}
+                                </Box>
+                              }
+                              primaryTypographyProps={{ fontWeight: 'medium' }}
+                            />
+                            <Box sx={{ display: 'flex', gap: 1 }}>
+                              <Tooltip title="View on map">
+                                <IconButton 
+                                  size="small" 
+                                  color="primary"
+                                  onClick={() => handleBuildingSelect(building)}
+                                >
+                                  <SearchIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Edit bookmark name">
+                                <IconButton 
+                                  size="small" 
+                                  color="primary"
+                                  onClick={() => editBookmark(building)}
+                                >
+                                  <EditIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Remove bookmark">
+                                <IconButton 
+                                  size="small" 
+                                  color="error"
+                                  onClick={() => {
+                                    setBookmarkToDelete(building);
+                                    setDeleteBookmarkDialogOpen(true);
+                                  }}
+                                >
+                                  <BookmarkIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            </Box>
+                          </ListItem>
+                        ))}
                     </List>
                   )}
                 </Box>
@@ -1989,11 +2478,28 @@ const BuildingSearch = () => {
                           const engAddress = addressParts[0] || '';
                           const chiAddress = addressParts[1] || '';
                           
-                          // CSV match logic
-                          const csvMatch = csvData.find(csvItem =>
-                            csvItem.EngName === eng?.BuildingName ||
-                            csvItem.ChiName === chi?.BuildingName
-                          );
+                          // CSV match logic - ensure this is consistent with handleSearch (by Easting/Northing)
+                          const itemApiEastingStr = item.Address?.PremisesAddress?.GeospatialInformation?.Easting;
+                          const itemApiNorthingStr = item.Address?.PremisesAddress?.GeospatialInformation?.Northing;
+
+                          const itemApiEasting = parseInt(itemApiEastingStr?.replace(/,/g, ''), 10);
+                          const itemApiNorthing = parseInt(itemApiNorthingStr?.replace(/,/g, ''), 10);
+
+                          let currentMatchingCsvRows = [];
+                          if (!isNaN(itemApiEasting) && !isNaN(itemApiNorthing)) {
+                            currentMatchingCsvRows = csvData.filter(csvRow =>
+                              !isNaN(csvRow.Easting) && !isNaN(csvRow.Northing) &&
+                              Math.abs(csvRow.Easting - itemApiEasting) <= 1 &&
+                              Math.abs(csvRow.Northing - itemApiNorthing) <= 1
+                            );
+                          }
+                          console.log(currentMatchingCsvRows, itemApiEasting, itemApiNorthing);
+                          let currentCsvMatchType = 'NONE';
+                          if (currentMatchingCsvRows.length === 1) {
+                            currentCsvMatchType = 'SINGLE';
+                          } else if (currentMatchingCsvRows.length > 1) {
+                            currentCsvMatchType = 'MULTIPLE';
+                          }
                           
                           // Get GeoAddress for unique identifier
                           const geoAddress = item.Address?.PremisesAddress?.GeoAddress || '';
@@ -2022,8 +2528,9 @@ const BuildingSearch = () => {
                                 latitude: item.Address?.PremisesAddress?.GeospatialInformation?.Latitude || '',
                                 longitude: item.Address?.PremisesAddress?.GeospatialInformation?.Longitude || '',
                                 geoAddress: geoAddress,
-                                hasCsvMatch: !!csvMatch,
-                                csvData: csvMatch
+                                matchingCsvRows: currentMatchingCsvRows, 
+                                csvMatchType: currentCsvMatchType, 
+                                COCR_No: currentMatchingCsvRows.length > 0 ? currentMatchingCsvRows[0].COCR_No : null
                               })}
                               sx={{
                                 borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
@@ -2054,7 +2561,7 @@ const BuildingSearch = () => {
                                         size="small" 
                                         sx={{ height: '20px', fontSize: '0.7rem' }}
                                       />
-                                      {csvMatch && (
+                                      {(currentCsvMatchType === 'SINGLE' || currentCsvMatchType === 'MULTIPLE') && (
                                         <Chip 
                                           label="COCR Registered" 
                                           size="small" 
@@ -2136,7 +2643,7 @@ const BuildingSearch = () => {
                         size="small" 
                         sx={{ mr: 1 }}
                       />
-                      {selectedBuilding.hasCsvMatch && (
+                      {(selectedBuilding.csvMatchType === 'SINGLE' || selectedBuilding.csvMatchType === 'MULTIPLE') && (
                         <Chip 
                           label="COCR Registered" 
                           size="small" 
@@ -2182,6 +2689,58 @@ const BuildingSearch = () => {
               value={bookmarkName}
               onChange={(e) => setBookmarkName(e.target.value)}
             />
+            
+            {/* Group selection */}
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="subtitle2" gutterBottom>
+                Add to Bookmark Group (Optional)
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1 }}>
+                {bookmarkGroups.map((group, index) => {
+                  // Use the local state to determine selection
+                  const isSelected = selectedGroupsInDialog.includes(group.id);
+                  
+                  return (
+                    <Chip
+                      key={`${group.id}_${index}`} // Use both ID and index for stable keys
+                      label={group.name}
+                      onClick={() => {
+                        // Toggle selection safely with function form of setState
+                        setSelectedGroupsInDialog(prev => {
+                          if (isSelected) {
+                            return prev.filter(id => id !== group.id);
+                          } else {
+                            return [...prev, group.id];
+                          }
+                        });
+                      }}
+                      color={isSelected ? "primary" : "default"}
+                      variant={isSelected ? "filled" : "outlined"}
+                      sx={{ 
+                        m: 0.5,
+                        borderWidth: isSelected ? 2 : 1,
+                        position: 'relative',
+                        pl: isSelected ? 2 : 1,
+                        '&:hover': {
+                          boxShadow: '0 0 0 1px rgba(0,0,0,0.1)'
+                        }
+                      }}
+                      icon={isSelected ? 
+                        <CheckIcon fontSize="small" sx={{ color: 'white' }} /> : 
+                        null
+                      }
+                    />
+                  );
+                })}
+                <Chip
+                  icon={<AddIcon />}
+                  label="New Group"
+                  variant="outlined"
+                  onClick={createBookmarkGroup}
+                  sx={{ m: 0.5 }}
+                />
+              </Box>
+            </Box>
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setBookmarkDialogOpen(false)} color="primary">
@@ -2222,41 +2781,36 @@ const BuildingSearch = () => {
           </DialogActions>
         </Dialog>
 
-        {/* Floating Add Bookmark Button (only when building is selected) */}
-        {selectedBuilding && !isBookmarked(selectedBuilding) && (
-          <Fab
-            color="primary"
-            size="medium"
-            aria-label="add bookmark"
-            onClick={() => toggleBookmark(selectedBuilding)}
-            sx={{
-              position: 'fixed',
-              bottom: (theme) => theme.spacing(10),
-              right: (theme) => theme.spacing(3),
-              zIndex: 1000
-            }}
-          >
-            <BookmarkBorderIcon />
-          </Fab>
-        )}
-
-        {/* Floating Show Bookmarks Button */}
-        {bookmarks.length > 0 && !showBookmarks && (
-          <Fab
-            color="secondary"
-            size="medium"
-            aria-label="show bookmarks"
-            onClick={toggleBookmarksPanel}
-            sx={{
-              position: 'fixed',
-              bottom: (theme) => theme.spacing(3),
-              right: (theme) => theme.spacing(3),
-              zIndex: 1000
-            }}
-          >
-            <BookmarksIcon />
-          </Fab>
-        )}
+        {/* Group Management Dialog */}
+        <Dialog open={groupDialogOpen} onClose={() => setGroupDialogOpen(false)}>
+          <DialogTitle>{editingGroup ? 'Edit Group' : 'Create New Group'}</DialogTitle>
+          <DialogContent>
+            <DialogContentText>
+              {editingGroup 
+                ? 'Edit the name for this bookmark group.' 
+                : 'Enter a name for your new bookmark group.'}
+            </DialogContentText>
+            <TextField
+              autoFocus
+              margin="dense"
+              id="groupName"
+              label="Group Name"
+              type="text"
+              fullWidth
+              variant="outlined"
+              value={groupName}
+              onChange={(e) => setGroupName(e.target.value)}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setGroupDialogOpen(false)} color="primary">
+              Cancel
+            </Button>
+            <Button onClick={handleSaveGroup} color="primary" variant="contained">
+              {editingGroup ? 'Update' : 'Create'}
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Box>
     </Box>
   );

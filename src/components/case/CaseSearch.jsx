@@ -896,7 +896,7 @@ const CaseSearch = () => {
             )}
 
             <Grid container spacing={2} alignItems="center">
-              <Grid item xs={12} sm={7} md={8} lg={8}>
+              <Grid item xs={12} sm={6} md={7} lg={7}>
                 <TextField
                   fullWidth
                   label="Keyword"
@@ -920,9 +920,9 @@ const CaseSearch = () => {
                 />
               </Grid>
               
-              <Grid item xs={12} sm={5} md={4} lg={4}>
-                <Box sx={{ display: 'flex', gap: 1 }}>
-                  <FormControl size="small" sx={{ minWidth: 140 }}>
+              <Grid item xs={12} sm={6} md={5} lg={5}>
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'nowrap' }}>
+                  <FormControl size="small" sx={{ minWidth: { xs: 130, md: 120 }, flexShrink: 1 }}>
                     <InputLabel id="status-select-label" sx={{ fontSize: '0.875rem' }}>Status</InputLabel>
                     <Select
                       labelId="status-select-label"
@@ -947,45 +947,69 @@ const CaseSearch = () => {
                     </Select>
                   </FormControl>
                   
-                  <Button 
-                    variant="text" 
-                    onClick={() => setFiltersOpen(!filtersOpen)}
-                    startIcon={<FilterListIcon sx={{ fontSize: '1rem' }} />}
-                    size="small"
-                    sx={{ minWidth: 'unset', height: '36px', fontSize: '0.75rem' }}
-                  >
-                    {filtersOpen ? 'Hide' : 'More'}
-                  </Button>
-                  
-                  <Button 
-                    variant="text" 
-                    color="error"
-                    onClick={handleClearFilters}
-                    size="small"
-                    startIcon={<ClearIcon sx={{ fontSize: '1rem' }} />}
-                    sx={{ minWidth: 'unset', height: '36px', fontSize: '0.75rem' }}
-                  >
-                    Clear
-                  </Button>
-                  
-                  <Button 
-                    variant="outlined" 
-                    onClick={handleSaveSearch}
-                    size="small"
-                    sx={{ minWidth: '36px', px: 1, height: '36px' }}
-                    color="primary"
-                  >
-                    <BookmarkIcon sx={{ fontSize: '1rem' }} />
-                  </Button>
-                  
-                  <Button 
-                    variant="contained" 
-                    onClick={handleSearch}
-                    size="small"
-                    sx={{ height: '36px', minWidth: '36px', px: 1 }}
-                  >
-                    <SearchIcon sx={{ fontSize: '1rem' }} />
-                  </Button>
+                  <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
+                    <Button 
+                      variant="text" 
+                      onClick={() => setFiltersOpen(!filtersOpen)}
+                      startIcon={<FilterListIcon sx={{ fontSize: '1rem' }} />}
+                      size="small"
+                      sx={{ 
+                        minWidth: 'unset', 
+                        height: '36px', 
+                        fontSize: '0.75rem',
+                        display: { xs: 'none', sm: 'inline-flex', md: 'inline-flex' }
+                      }}
+                    >
+                      {filtersOpen ? 'Hide' : 'More'}
+                    </Button>
+                    
+                    <Button 
+                      variant="text" 
+                      color="error"
+                      onClick={handleClearFilters}
+                      size="small"
+                      startIcon={<ClearIcon sx={{ fontSize: '1rem' }} />}
+                      sx={{ 
+                        minWidth: 'unset', 
+                        height: '36px', 
+                        fontSize: '0.75rem',
+                        display: { xs: 'none', sm: 'inline-flex', md: 'inline-flex' }
+                      }}
+                    >
+                      Clear
+                    </Button>
+                    
+                    <Button 
+                      variant="outlined" 
+                      onClick={handleSaveSearch}
+                      size="small"
+                      sx={{ 
+                        minWidth: '36px', 
+                        width: '36px',
+                        px: 1, 
+                        height: '36px',
+                        display: { xs: 'none', sm: 'flex', md: 'flex' }
+                      }}
+                      color="primary"
+                    >
+                      <BookmarkIcon sx={{ fontSize: '1rem' }} />
+                    </Button>
+                    
+                    <Button 
+                      variant="contained" 
+                      onClick={handleSearch}
+                      size="small"
+                      sx={{ 
+                        height: '36px', 
+                        minWidth: '36px', 
+                        width: '36px',
+                        px: 1,
+                        flexShrink: 0
+                      }}
+                    >
+                      <SearchIcon sx={{ fontSize: '1rem' }} />
+                    </Button>
+                  </Box>
                 </Box>
               </Grid>
             </Grid>
