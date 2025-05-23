@@ -54,9 +54,9 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import BlockIcon from '@mui/icons-material/Block';
 import SearchIcon from '@mui/icons-material/Search';
 import VisibilityIcon from '@mui/icons-material/Visibility'; // Added VisibilityIcon
-import BreadcrumbNav from '../common/BreadcrumbNav';
 import AppSidebar from '../common/AppSidebar';
 import AttachmentUpload from '../common/AttachmentUpload';
+import CaseDetailTabs from './CaseDetailTabs'; // Import the new Tabs component
 
 // Remove the ResizablePanel styled component and replace with regular Box
 const TimelineContainer = styled(Box)(({ theme }) => ({
@@ -99,9 +99,9 @@ const casesData = {
     caseType: 'REA Registration',
     createdDate: '2023-11-20',
     wbrsNo: 'WBRS001',
-    description: 'REA registration application',
+    description: 'REA registration application - Updated to match WBRS001 structure',
     applicationForm: {
-        "applicationType": "new", // new/renewal/change
+        "applicationType": "new", 
         "applicantInfo": {
           "currentCompany": {
             "name": "ABC Engineering Ltd",
@@ -126,51 +126,88 @@ const casesData = {
           },
           "signature": {
             "date": "2023-10-05",
-            "imageData": "base64EncodedImageString"
+            // "imageData": "base64EncodedImageString" // Removed as not in WBRS mock or form
           }
         },
         "qualifications": [
           {
-            "type": "professionalEngineer",
-            "registrationNumber": "ENG12345",
-            "discipline": "BSS",
-            "yearOfQualification": 2015,
-            "hkieMembership": {
-              "corporateMember": true,
-              "equivalentQualification": false
-            }
+            "qualificationType": "registeredProfessionalEngineer",
+            "dateOfQualification": "2015-05-10",
+            "membershipNo": "RPE12345",
+            "disciplines": ["BSS", "ELL"],
+            "professionalBody": "",
+            "disciplineAttachments": [
+              { "discipline": "BSS", "fileName": "BSS_RPE_Cert.pdf", "fileSize": "1.2MB" },
+              { "discipline": "ELL", "fileName": "ELL_RPE_Cert.pdf", "fileSize": "1.1MB" }
+            ]
           },
           {
-            "type": "otherQualification",
-            "issuingBody": "Chartered Institution of Building Services Engineers",
-            "yearOfQualification": 2018
+            "qualificationType": "corporateMemberHKIE",
+            "dateOfQualification": "2016-07-20",
+            "membershipNo": "HKIE98765",
+            "disciplines": ["ENV"],
+            "professionalBody": "",
+            "disciplineAttachments": [
+              { "discipline": "ENV", "fileName": "ENV_HKIE_Cert.pdf", "fileSize": "0.9MB" }
+            ]
+          },
+          {
+            "qualificationType": "equivalentQualification",
+            "dateOfQualification": "2017-02-15",
+            "membershipNo": "EQM45678",
+            "disciplines": ["MCL"],
+            "professionalBody": "Institution of Mechanical Engineers (IMechE)",
+            "disciplineAttachments": [
+              { "discipline": "MCL", "fileName": "MCL_EQ_Cert.pdf", "fileSize": "1.5MB" }
+            ]
+          },
+          {
+            "qualificationType": "other",
+            "dateOfQualification": "2018-11-01", 
+            "membershipNo": "", 
+            "disciplines": [], 
+            "description": "Certified Energy Manager (CEM)",
+            "otherAttachment": { "fileName": "CEM_Cert.pdf", "size": "0.8MB" }
           }
         ],
         "practicalExperience": [
           {
+            "id": "exp1", // Added ID for keying if needed
             "startDate": "2018-03-01",
             "endDate": "2021-08-31",
             "position": "Energy Auditor",
             "company": "XYZ Consultants",
-            "description": "Conducted energy audits for 20+ commercial buildings under BEAM Plus certification"
+            "description": "Conducted energy audits for 20+ commercial buildings under BEAM Plus certification",
+            "attachment": {
+              "fileName": "Energy_Auditor_Experience_Letter.pdf",
+              "fileSize": "1.8MB"
+            }
           },
           {
+            "id": "exp2",
             "startDate": "2021-09-01",
             "endDate": "2023-10-05",
             "position": "Energy Manager",
             "company": "GreenTech Solutions",
-            "description": "Led implementation of ISO 50001 energy management system in industrial facilities"
+            "description": "Led implementation of ISO 50001 energy management system in industrial facilities",
+            "attachment": {
+              "fileName": "Energy_Manager_Reference_Letter.pdf",
+              "fileSize": "2.1MB"
+            }
           }
         ],
         "supportingDocuments": [
           {
+            "id": "sd1", // Added ID
             "documentType": "professionalQualificationProof",
             "status": "attached",
             "fileName": "PE_Certificate_2015.pdf"
           },
           {
+            "id": "sd2",
             "documentType": "experienceVerificationLetter",
-            "status": "pending"
+            "status": "pending",
+            "fileName": null
           }
         ],
         "disclosurePreferences": {
@@ -186,8 +223,8 @@ const casesData = {
         "submissionInfo": {
           "submissionDate": "2023-10-06",
           "submissionMethod": "inPerson",
-          "interviewScheduled": true,
-          "interviewTime": "2023-10-12T10:00:00"
+          // "interviewScheduled": true, // Not in WBRS REA form, can be added if needed by CaseDetail
+          // "interviewTime": "2023-10-12T10:00:00"
         },
         "regulatoryCompliance": {
           "antiCorruptionDeclaration": true,
@@ -329,6 +366,15 @@ const CaseDetail = () => {
 
   const applicationData = caseData.applicationForm; // Use the applicationForm from caseData
   
+  const handleSaveApplicationForm = () => {
+    // Logic to save the editableData
+    // For now, just log it and potentially update the main casesData mock
+    console.log("Saving Application Form:", editableData);
+    // Potentially update casesData if this were a real backend:
+    // Object.assign(casesData[caseId], { applicationForm: { ...editableData } });
+    setEditMode(false); // Exit edit mode after saving
+  };
+  
   const handleFieldChange = (field, value) => {
     setEditableData(prev => ({ ...prev, [field]: value }));
   };
@@ -339,6 +385,20 @@ const CaseDetail = () => {
       [section]: {
         ...prev[section],
         [field]: value
+      }
+    }));
+  };
+  
+  // Handler for deeply nested fields (3 levels) like applicantInfo.contact.officePhone
+  const handleDeepNestedFieldChange = (section, subSection, field, value) => {
+    setEditableData(prev => ({
+      ...prev,
+      [section]: {
+        ...prev[section],
+        [subSection]: {
+          ...prev[section]?.[subSection],
+          [field]: value
+        }
       }
     }));
   };
@@ -354,6 +414,97 @@ const CaseDetail = () => {
         }
       }
     }));
+  };
+
+  // More specific address handler for the new structure in CaseDetailTabs
+  const handleTabAddressChange = (sectionPath, field, value) => {
+    setEditableData(prev => {
+      const pathParts = sectionPath.split('.');
+      let currentLevel = prev;
+      for (let i = 0; i < pathParts.length -1; i++) {
+        currentLevel = currentLevel[pathParts[i]];
+      }
+      currentLevel[pathParts[pathParts.length-1]] = {
+        ...currentLevel[pathParts[pathParts.length-1]],
+        [field]: value
+      };
+      return {...prev};
+    });
+  };
+
+  // ADDING/ADAPTING HANDLERS TO MATCH WBRSDetail/GenericApplicationForm EXPECTATIONS
+  const handleSimpleFieldChange = (section, field, value) => {
+    setEditableData(prev => ({
+      ...prev,
+      [section]: {
+        ...prev[section],
+        [field]: value
+      }
+    }));
+  };
+
+  const handleArrayObjectChange = (arrayName, index, field, value) => {
+    setEditableData(prev => {
+      const newArray = [...(prev[arrayName] || [])];
+      if (newArray[index]) {
+        newArray[index] = { ...newArray[index], [field]: value };
+      }
+      return { ...prev, [arrayName]: newArray };
+    });
+  };
+
+  const handleQualificationAttachmentChange = (qualIndex, disciplineOrOther, attachmentDetails) => {
+    setEditableData(prev => {
+      const newQualifications = JSON.parse(JSON.stringify(prev.qualifications || [])); // Deep copy
+      if (newQualifications[qualIndex]) {
+        if (newQualifications[qualIndex].qualificationType === 'other') {
+          newQualifications[qualIndex].otherAttachment = {
+            ...(newQualifications[qualIndex].otherAttachment || {}),
+            fileName: attachmentDetails.fileName,
+            size: attachmentDetails.fileSize // Use 'size' to match mock data in CaseDetail.jsx
+          };
+        } else {
+          let newDisciplineAttachments = newQualifications[qualIndex].disciplineAttachments || [];
+          const attachmentIndex = newDisciplineAttachments.findIndex(att => att.discipline === disciplineOrOther);
+          if (attachmentIndex > -1) {
+            newDisciplineAttachments[attachmentIndex] = {
+              ...newDisciplineAttachments[attachmentIndex],
+              fileName: attachmentDetails.fileName,
+              fileSize: attachmentDetails.fileSize // Use 'fileSize' to match mock data in CaseDetail.jsx
+            };
+          } else {
+            newDisciplineAttachments.push({ 
+              discipline: disciplineOrOther, 
+              fileName: attachmentDetails.fileName, 
+              fileSize: attachmentDetails.fileSize 
+            });
+          }
+          newQualifications[qualIndex].disciplineAttachments = newDisciplineAttachments;
+        }
+      }
+      return { ...prev, qualifications: newQualifications };
+    });
+  };
+
+  // Adapting existing handleTabAddressChange to match GenericApplicationForm's handleAddressChange signature
+  const adaptedAddressChangeHandler = (section, subSection, field, value) => {
+    // section is like 'applicantInfo', subSection is 'currentCompany', field is 'flat', value is the new value
+    setEditableData(prev => {
+        const updatedSection = {
+            ...prev[section],
+            [subSection]: {
+                ...prev[section]?.[subSection],
+                address: {
+                    ...(prev[section]?.[subSection]?.address || {}),
+                    [field]: value
+                }
+            }
+        };
+        return {
+            ...prev,
+            [section]: updatedSection
+        };
+    });
   };
 
   // Update the mock tasks to include multiple action by roles
@@ -574,32 +725,37 @@ const CaseDetail = () => {
       {/* Main content */}
       <Box sx={{ 
         flex: 1, 
-        p: 2, 
-        overflow: 'hidden',
+        p: 1.5,
+        overflowY: 'auto',
         transition: theme => theme.transitions.create(['margin'], {
           easing: theme.transitions.easing.sharp,
           duration: theme.transitions.duration.enteringScreen,
         }),
         marginLeft: 0
       }}>
-        <BreadcrumbNav paths={[
+        {/* <BreadcrumbNav paths={[
           { label: 'Home', path: '/' },
           { label: 'Cases', path: '/cases' },
           { label: caseData.caseId, path: `/cases/${caseData.caseId}` }
-        ]} />
+        ]} /> */}
 
-        <Box sx={{ display: 'flex', height: 'calc(100vh - 80px)', gap: 1 }}>
+        <Box sx={{ display: 'flex', minHeight: 'calc(100vh - 80px)', gap: 1 }}>
           {/* Main Panel - full width */}
           <Box
             sx={{
               width: '100%',
               minWidth: 300,
               display: 'flex',
-              flexDirection: 'column',
+              flexDirection: 'column'
             }}
           >
-            <Card sx={{ mb: 1, flexShrink: 0, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-              <CardContent sx={{ pb: '8px !important', pt: 1.5, px: 2 }}>
+            <Card sx={{ 
+              mb: 1.5,
+              flexShrink: 0, 
+              boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+              borderRadius: 2
+            }}>
+              <CardContent sx={{ p: '12px !important', pb: '12px !important' }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: detailsExpanded ? 1 : 0 }}>
                   <Typography variant="subtitle1" sx={{ mr: 1, fontWeight: 'medium' }}>Case Details</Typography>
                   {!detailsExpanded && (
@@ -610,8 +766,8 @@ const CaseDetail = () => {
                   <Chip
                     label={caseData.status}
                     color={caseData.status === 'Open' ? 'primary' : (caseData.status === 'In Progress' ? 'primary' : (caseData.status === 'Pending' ? 'warning' : (caseData.status === 'Rejected' ? 'error' : (caseData.status === 'Completed' || caseData.status === 'Closed' ? 'success' : 'default'))))}
-                    size="small"
-                    sx={{ height: '22px', '& .MuiChip-label': { px: 1, py: 0.25, fontSize: '0.75rem' }, ml: 1 }}
+                    size="medium"
+                    sx={{ fontWeight: 'bold', fontSize:'0.8rem', height:'28px', ml: 1 }}
                   />
                   <IconButton
                     size="small"
@@ -656,1028 +812,49 @@ const CaseDetail = () => {
               </CardContent>
             </Card>
 
-            <Paper sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: 'none', borderRadius: '0 0 8px 8px', height: detailsExpanded ? 'calc(100% - 140px)' : 'calc(100% - 50px)' }}> {/* Rounded bottom corners with dynamic height */}
-              <Tabs 
-                value={tabValue} 
-                onChange={(e, v) => setTabValue(v)} 
-                sx={{ 
-                  borderBottom: 1, 
-                  borderColor: 'divider', 
-                  flexShrink: 0,
-                  bgcolor: 'grey.50',
-                  borderTopLeftRadius: 0, // Ensure top corners are not rounded if card above is
-                  borderTopRightRadius: 0,
-                  '& .MuiTabs-indicator': {
-                    height: 3,
-                    borderRadius: '3px 3px 0 0'
-                  },
-                  '& .MuiTab-root': {
-                    textTransform: 'none',
-                    fontWeight: 'medium',
-                    minWidth: 100, // Ensure tabs have enough space
-                    padding: '8px 12px',
-                    minHeight: '40px',
-                    '&.Mui-selected': {
-                      color: 'primary.main',
-                    }
-                  }
-                }}
-                variant="scrollable" // Changed from fullWidth to scrollable for better mobile experience
-                scrollButtons="auto" // Show scroll buttons when needed
-              >
-                <Tab label="Application" />
-                <Tab label="Tasks" />
-                <Tab label="Attachments" />
-                <Tab label={`Related Cases (${relatedCases.length})`} />
-                <Tab label="History" />
-              </Tabs>
-              <Box sx={{ flex: 1, p: 1.5, overflow: 'auto', bgcolor: 'white', height: '100%' }}> {/* Added height: 100% */}
-                {tabValue === 0 && applicationData && (
-                  <Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
-                      <Button
-                        variant={editMode ? 'contained' : 'outlined'}
-                        color="primary"
-                        size="small"
-                        startIcon={<EditIcon />}
-                        onClick={() => setEditMode((prev) => !prev)}
-                        sx={{ height: '30px', fontSize: '0.8rem' }}
-                      >
-                        {editMode ? 'Save' : 'Edit'}
-                      </Button>
-                    </Box>
-                    {caseData.caseType === 'COCR S1' ? (
-                      <>
-                        {/* Building Information Card */}
-                        <Card sx={{ mb: 1 }}>
-                          <CardContent sx={{ p: "8px 16px !important" }}>
-                            <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold', color: 'primary.main', borderBottom: '1px solid', borderColor: 'divider', pb: 0.5 }}>Building Information</Typography>
-                            <Grid container spacing={1}>
-                              <Grid item xs={12} md={6}>
-                                <Box sx={{ mb: 1 }}>
-                                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Building Name (English)</Typography>
-                                  {editMode ? (
-                                    <TextField
-                                      fullWidth
-                                      value={editableData.buildingInfo?.name?.english || ''}
-                                      onChange={(e) => handleNestedFieldChange('buildingInfo', 'name', { ...editableData.buildingInfo?.name, english: e.target.value })}
-                                      size="small"
-                                      margin="dense"
-                                      sx={{ mt: 0.5 }}
-                                    />
-                                  ) : (
-                                    <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{applicationData.buildingInfo?.name?.english}</Typography>
-                                  )}
-                                </Box>
-                              </Grid>
-                              <Grid item xs={12} md={6}>
-                                <Box sx={{ mb: 1 }}>
-                                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Building Name (Chinese)</Typography>
-                                  {editMode ? (
-                                    <TextField
-                                      fullWidth
-                                      value={editableData.buildingInfo?.name?.chinese || ''}
-                                      onChange={(e) => handleNestedFieldChange('buildingInfo', 'name', { ...editableData.buildingInfo?.name, chinese: e.target.value })}
-                                      size="small"
-                                      margin="dense"
-                                      sx={{ mt: 0.5 }}
-                                    />
-                                  ) : (
-                                    <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{applicationData.buildingInfo?.name?.chinese}</Typography>
-                                  )}
-                                </Box>
-                              </Grid>
-                              
-                              {/* Add building address fields */}
-                              <Grid item xs={12}>
-                                <Box sx={{ mb: 1 }}>
-                                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Building Address</Typography>
-                                  {editMode ? (
-                                    <TextField
-                                      fullWidth
-                                      multiline
-                                      rows={2}
-                                      value={`${applicationData.buildingInfo?.address?.streetNo || ''} ${applicationData.buildingInfo?.address?.streetEnglish || ''}, ${applicationData.buildingInfo?.address?.districtEnglish || ''}`}
-                                      size="small"
-                                      margin="dense"
-                                      sx={{ mt: 0.5 }}
-                                    />
-                                  ) : (
-                                    <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>
-                                      {`${applicationData.buildingInfo?.address?.streetNo || ''} ${applicationData.buildingInfo?.address?.streetEnglish || ''}, ${applicationData.buildingInfo?.address?.districtEnglish || ''}`}
-                                    </Typography>
-                                  )}
-                                </Box>
-                              </Grid>
-                              
-                              <Grid item xs={12} md={6}>
-                                <Box sx={{ mb: 1 }}>
-                                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Building Category</Typography>
-                                  {editMode ? (
-                                    <TextField
-                                      fullWidth
-                                      value={editableData.buildingInfo?.buildingCategory?.join(", ") || ''}
-                                      size="small"
-                                      margin="dense"
-                                      sx={{ mt: 0.5 }}
-                                    />
-                                  ) : (
-                                    <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{applicationData.buildingInfo?.buildingCategory?.join(", ")}</Typography>
-                                  )}
-                                </Box>
-                              </Grid>
-                              
-                              <Grid item xs={12} md={6}>
-                                <Box sx={{ mb: 1 }}>
-                                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Lot Number</Typography>
-                                  {editMode ? (
-                                    <TextField
-                                      fullWidth
-                                      value={editableData.buildingInfo?.lotNo || ''}
-                                      size="small"
-                                      margin="dense"
-                                      sx={{ mt: 0.5 }}
-                                    />
-                                  ) : (
-                                    <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{applicationData.buildingInfo?.lotNo}</Typography>
-                                  )}
-                                </Box>
-                              </Grid>
-                              
-                              <Grid item xs={12} md={6}>
-                                <Box sx={{ mb: 1 }}>
-                                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Total Gross Floor Area (m²)</Typography>
-                                  {editMode ? (
-                                    <TextField
-                                      fullWidth
-                                      type="number"
-                                      value={editableData.buildingInfo?.grossFloorArea?.total || ''}
-                                      size="small"
-                                      margin="dense"
-                                      sx={{ mt: 0.5 }}
-                                    />
-                                  ) : (
-                                    <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{applicationData.buildingInfo?.grossFloorArea?.total}</Typography>
-                                  )}
-                                </Box>
-                              </Grid>
-                              
-                              <Grid item xs={12} md={6}>
-                                <Box sx={{ mb: 1 }}>
-                                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Commercial Portion (m²)</Typography>
-                                  {editMode ? (
-                                    <TextField
-                                      fullWidth
-                                      type="number"
-                                      value={editableData.buildingInfo?.grossFloorArea?.commercialPortion || ''}
-                                      size="small"
-                                      margin="dense"
-                                      sx={{ mt: 0.5 }}
-                                    />
-                                  ) : (
-                                    <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{applicationData.buildingInfo?.grossFloorArea?.commercialPortion}</Typography>
-                                  )}
-                                </Box>
-                              </Grid>
-                            </Grid>
-                          </CardContent>
-                        </Card>
-                        
-                        {/* Declaration Information Card */}
-                        <Card sx={{ mb: 1 }}>
-                          <CardContent sx={{ p: "8px 16px !important" }}>
-                            <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold', color: 'primary.main', borderBottom: '1px solid', borderColor: 'divider', pb: 0.5 }}>Declaration Information</Typography>
-                            <Grid container spacing={1}>
-                              <Grid item xs={12} md={6}>
-                                <Box sx={{ mb: 1 }}>
-                                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Submission Purpose</Typography>
-                                  {editMode ? (
-                                    <TextField
-                                      fullWidth
-                                      value={editableData.declarationInfo?.submissionPurpose || ''}
-                                      size="small"
-                                      margin="dense"
-                                      sx={{ mt: 0.5 }}
-                                    />
-                                  ) : (
-                                    <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{applicationData.declarationInfo?.submissionPurpose}</Typography>
-                                  )}
-                                </Box>
-                              </Grid>
-                              
-                              <Grid item xs={12} md={6}>
-                                <Box sx={{ mb: 1 }}>
-                                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Previous Reference</Typography>
-                                  {editMode ? (
-                                    <TextField
-                                      fullWidth
-                                      value={editableData.declarationInfo?.previousReference || ''}
-                                      size="small"
-                                      margin="dense"
-                                      sx={{ mt: 0.5 }}
-                                    />
-                                  ) : (
-                                    <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{applicationData.declarationInfo?.previousReference}</Typography>
-                                  )}
-                                </Box>
-                              </Grid>
-                              
-                              <Grid item xs={12} md={4}>
-                                <Box sx={{ mb: 1 }}>
-                                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Consent Date</Typography>
-                                  {editMode ? (
-                                    <TextField
-                                      fullWidth
-                                      type="date"
-                                      value={editableData.declarationInfo?.consentDate || ''}
-                                      size="small"
-                                      margin="dense"
-                                      sx={{ mt: 0.5 }}
-                                    />
-                                  ) : (
-                                    <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{applicationData.declarationInfo?.consentDate}</Typography>
-                                  )}
-                                </Box>
-                              </Grid>
-                              
-                              <Grid item xs={12} md={4}>
-                                <Box sx={{ mb: 1 }}>
-                                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Construction Start Date</Typography>
-                                  {editMode ? (
-                                    <TextField
-                                      fullWidth
-                                      type="date"
-                                      value={editableData.declarationInfo?.constructionStartDate || ''}
-                                      size="small"
-                                      margin="dense"
-                                      sx={{ mt: 0.5 }}
-                                    />
-                                  ) : (
-                                    <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{applicationData.declarationInfo?.constructionStartDate}</Typography>
-                                  )}
-                                </Box>
-                              </Grid>
-                              
-                              <Grid item xs={12} md={4}>
-                                <Box sx={{ mb: 1 }}>
-                                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Occupancy Approval Date</Typography>
-                                  {editMode ? (
-                                    <TextField
-                                      fullWidth
-                                      type="date"
-                                      value={editableData.declarationInfo?.occupancyApprovalDate || ''}
-                                      size="small"
-                                      margin="dense"
-                                      sx={{ mt: 0.5 }}
-                                    />
-                                  ) : (
-                                    <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{applicationData.declarationInfo?.occupancyApprovalDate}</Typography>
-                                  )}
-                                </Box>
-                              </Grid>
-                            </Grid>
-                          </CardContent>
-                        </Card>
-                        
-                        {/* Supporting Files Card */}
-                        <Card sx={{ mb: 1 }}>
-                          <CardContent sx={{ p: "8px 16px !important" }}>
-                            <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold', color: 'primary.main', borderBottom: '1px solid', borderColor: 'divider', pb: 0.5 }}>Supporting Files</Typography>
-                            <Grid container spacing={1}>
-                              {applicationData.supportingFiles?.map((doc, index) => (
-                                <Grid item xs={12} sm={6} md={4} key={index}>
-                                  <Box sx={{ mb: 1 }}>
-                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>{doc.type}</Typography>
-                                    {editMode ? (
-                                      <TextField fullWidth value={editableData.supportingFiles?.[index]?.status || ''} onChange={(e) => handleNestedFieldChange('supportingFiles', index, { ...editableData.supportingFiles?.[index], status: e.target.value })} size="small" margin="dense" select>
-                                        <MenuItem value="attached">Attached</MenuItem>
-                                        <MenuItem value="pending">Pending</MenuItem>
-                                        <MenuItem value="not required">Not Required</MenuItem>
-                                      </TextField>
-                                    ) : (
-                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                        <Chip 
-                                          label={doc.status} 
-                                          size="small" 
-                                          color={doc.status === 'attached' ? 'success' : (doc.status === 'pending' ? 'primary' : 'warning')}
-                                          sx={{ height: '22px', '& .MuiChip-label': { px: 1, py: 0.25, fontSize: '0.75rem' } }}
-                                        />
-                                        {doc.status === 'attached' && doc.fileName && (
-                                          <Typography variant="body2" component="a" href="#" sx={{ textDecoration: 'underline', color: 'primary.main', cursor: 'pointer' }}>
-                                            {doc.fileName}
-                                          </Typography>
-                                        )}
-                                      </Box>
-                                    )}
-                                  </Box>
-                                </Grid>
-                              ))}
-                            </Grid>
-                          </CardContent>
-                        </Card>
-                      </>
-                    ) : (
-                      /* Applicant Information Card */
-                      <Card sx={{ mb: 1 }}>
-                        <CardContent sx={{ p: "8px 16px !important" }}>
-                          <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold', color: 'primary.main', borderBottom: '1px solid', borderColor: 'divider', pb: 0.5 }}>Applicant Information</Typography>
-                          <Grid container spacing={1}>
-                            {/* Application Type */}
-                            <Grid item xs={12} sm={6} md={4} lg={3}>
-                              <Box sx={{ mb: 1 }}>
-                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Application Type</Typography>
-                                {editMode ? (
-                                  <TextField
-                                    fullWidth
-                                    value={editableData.applicationType || ''}
-                                    onChange={(e) => handleFieldChange('applicationType', e.target.value)}
-                                    size="small"
-                                    margin="dense"
-                                    sx={{ mt: 0.5 }}
-                                  />
-                                ) : (
-                                  <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{applicationData.applicationType}</Typography>
-                                )}
-                              </Box>
-                            </Grid>
-                            {/* Company Name */}
-                            <Grid item xs={12} sm={6} md={4} lg={3}>
-                              <Box sx={{ mb: 1 }}>
-                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Company Name</Typography>
-                                {editMode ? (
-                                  <TextField
-                                    fullWidth
-                                    value={editableData.applicantInfo?.currentCompany?.name || ''}
-                                    onChange={(e) => handleNestedFieldChange('applicantInfo', 'currentCompany', { ...editableData.applicantInfo?.currentCompany, name: e.target.value })}
-                                    size="small"
-                                    margin="dense"
-                                    sx={{ mt: 0.5 }}
-                                  />
-                                ) : (
-                                  <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{applicationData.applicantInfo?.currentCompany?.name}</Typography>
-                                )}
-                              </Box>
-                            </Grid>
-                            {/* Position */}
-                            <Grid item xs={12} sm={6} md={4} lg={3}>
-                              <Box sx={{ mb: 1 }}>
-                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Position</Typography>
-                                {editMode ? (
-                                  <TextField
-                                    fullWidth
-                                    value={editableData.applicantInfo?.position || ''}
-                                    onChange={(e) => handleNestedFieldChange('applicantInfo', 'position', e.target.value)}
-                                    size="small"
-                                    margin="dense"
-                                    sx={{ mt: 0.5 }}
-                                  />
-                                ) : (
-                                  <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{applicationData.applicantInfo?.position}</Typography>
-                                )}
-                              </Box>
-                            </Grid>
-                            {/* Office Phone */}
-                            <Grid item xs={12} sm={6} md={4} lg={3}>
-                              <Box sx={{ mb: 1 }}>
-                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Office Phone</Typography>
-                                {editMode ? (
-                                  <TextField
-                                    fullWidth
-                                    value={editableData.applicantInfo?.contact?.officePhone || ''}
-                                    onChange={(e) => handleNestedFieldChange('applicantInfo', 'contact', { ...editableData.applicantInfo?.contact, officePhone: e.target.value })}
-                                    size="small"
-                                    margin="dense"
-                                    sx={{ mt: 0.5 }}
-                                  />
-                                ) : (
-                                  <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{applicationData.applicantInfo?.contact?.officePhone}</Typography>
-                                )}
-                              </Box>
-                            </Grid>
-                            {/* Fax */}
-                            <Grid item xs={12} sm={6} md={4} lg={3}>
-                              <Box sx={{ mb: 1 }}>
-                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Fax</Typography>
-                                {editMode ? (
-                                  <TextField
-                                    fullWidth
-                                    value={editableData.applicantInfo?.contact?.fax || ''}
-                                    onChange={(e) => handleNestedFieldChange('applicantInfo', 'contact', { ...editableData.applicantInfo?.contact, fax: e.target.value })}
-                                    size="small"
-                                    margin="dense"
-                                    sx={{ mt: 0.5 }}
-                                  />
-                                ) : (
-                                  <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{applicationData.applicantInfo?.contact?.fax}</Typography>
-                                )}
-                              </Box>
-                            </Grid>
-                            {/* Address */}
-                            <Grid item xs={12}>
-                              <Box sx={{ mb: 1 }}>
-                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Address</Typography>
-                                {editMode ? (
-                                  <Grid container spacing={1}>
-                                    <Grid item xs={12} sm={2}><TextField fullWidth label="Flat" value={editableData.applicantInfo?.currentCompany?.address?.flat || ''} onChange={(e) => handleAddressChange('applicantInfo', 'currentCompany', { ...editableData.applicantInfo?.currentCompany?.address, flat: e.target.value })} size="small" margin="dense" /></Grid>
-                                    <Grid item xs={12} sm={2}><TextField fullWidth label="Floor" value={editableData.applicantInfo?.currentCompany?.address?.floor || ''} onChange={(e) => handleAddressChange('applicantInfo', 'currentCompany', { ...editableData.applicantInfo?.currentCompany?.address, floor: e.target.value })} size="small" margin="dense" /></Grid>
-                                    <Grid item xs={12} sm={2}><TextField fullWidth label="Block" value={editableData.applicantInfo?.currentCompany?.address?.block || ''} onChange={(e) => handleAddressChange('applicantInfo', 'currentCompany', { ...editableData.applicantInfo?.currentCompany?.address, block: e.target.value })} size="small" margin="dense" /></Grid>
-                                    <Grid item xs={12} sm={6}><TextField fullWidth label="Building" value={editableData.applicantInfo?.currentCompany?.address?.building || ''} onChange={(e) => handleAddressChange('applicantInfo', 'currentCompany', { ...editableData.applicantInfo?.currentCompany?.address, building: e.target.value })} size="small" margin="dense" /></Grid>
-                                    <Grid item xs={12} sm={6}><TextField fullWidth label="Street" value={editableData.applicantInfo?.currentCompany?.address?.street || ''} onChange={(e) => handleAddressChange('applicantInfo', 'currentCompany', { ...editableData.applicantInfo?.currentCompany?.address, street: e.target.value })} size="small" margin="dense" /></Grid>
-                                    <Grid item xs={12} sm={6}><TextField fullWidth label="City" value={editableData.applicantInfo?.currentCompany?.address?.city || ''} onChange={(e) => handleAddressChange('applicantInfo', 'currentCompany', { ...editableData.applicantInfo?.currentCompany?.address, city: e.target.value })} size="small" margin="dense" /></Grid>
-                                  </Grid>
-                                ) : (
-                                  <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{renderAddress(applicationData.applicantInfo?.currentCompany?.address)}</Typography>
-                                )}
-                              </Box>
-                            </Grid>
-                          </Grid>
-                        </CardContent>
-                      </Card>
-                    )}
-
-                    {caseData.caseType === 'REA Registration' && (
-                      /* Qualifications Card */
-                      <Card sx={{ mb: 1 }}>
-                        <CardContent sx={{ p: "8px 16px !important" }}>
-                          <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold', color: 'primary.main', borderBottom: '1px solid', borderColor: 'divider', pb: 0.5 }}>Qualifications</Typography>
-                          {applicationData.qualifications?.map((qual, index) => (
-                            <Box key={index} sx={{ mb: 1, p: 1, border: '1px solid', borderColor: 'divider', borderRadius: 1, bgcolor: 'background.paper' }}>
-                              <Grid container spacing={1}>
-                                <Grid item xs={12} sm={6} md={3}>
-                                  <Box sx={{ mb: 1 }}>
-                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Type</Typography>
-                                    {editMode ? (
-                                      <TextField fullWidth value={editableData.qualifications?.[index]?.type || ''} onChange={(e) => handleNestedFieldChange('qualifications', index, { ...editableData.qualifications?.[index], type: e.target.value })} size="small" margin="dense" />
-                                    ) : (
-                                      <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{qual.type}</Typography>
-                                    )}
-                                  </Box>
-                                </Grid>
-                                <Grid item xs={12} sm={6} md={3}>
-                                  <Box sx={{ mb: 1 }}>
-                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Registration Number</Typography>
-                                    {editMode ? (
-                                      <TextField fullWidth value={editableData.qualifications?.[index]?.registrationNumber || ''} onChange={(e) => handleNestedFieldChange('qualifications', index, { ...editableData.qualifications?.[index], registrationNumber: e.target.value })} size="small" margin="dense" />
-                                    ) : (
-                                      <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{qual.registrationNumber}</Typography>
-                                    )}
-                                  </Box>
-                                </Grid>
-                                <Grid item xs={12} sm={6} md={3}>
-                                  <Box sx={{ mb: 1 }}>
-                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Discipline</Typography>
-                                    {editMode ? (
-                                      <TextField fullWidth value={editableData.qualifications?.[index]?.discipline || ''} onChange={(e) => handleNestedFieldChange('qualifications', index, { ...editableData.qualifications?.[index], discipline: e.target.value })} size="small" margin="dense" />
-                                    ) : (
-                                      <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{qual.discipline}</Typography>
-                                    )}
-                                  </Box>
-                                </Grid>
-                                <Grid item xs={12} sm={6} md={3}>
-                                  <Box sx={{ mb: 1 }}>
-                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Year of Qualification</Typography>
-                                    {editMode ? (
-                                      <TextField fullWidth type="number" value={editableData.qualifications?.[index]?.yearOfQualification || ''} onChange={(e) => handleNestedFieldChange('qualifications', index, { ...editableData.qualifications?.[index], yearOfQualification: parseInt(e.target.value) })} size="small" margin="dense" />
-                                    ) : (
-                                      <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{qual.yearOfQualification}</Typography>
-                                    )}
-                                  </Box>
-                                </Grid>
-                              </Grid>
-                            </Box>
-                          ))}
-                        </CardContent>
-                      </Card>
-                    )}
-
-                    {/* Supporting Documents Card */}
-                    <Card sx={{ mb: 1 }}>
-                      <CardContent sx={{ p: "8px 16px !important" }}>
-                        <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold', color: 'primary.main', borderBottom: '1px solid', borderColor: 'divider', pb: 0.5 }}>Supporting Documents</Typography>
-                        <Grid container spacing={1}>
-                          {applicationData.supportingDocuments?.map((doc, index) => (
-                            <Grid item xs={12} sm={6} md={4} key={index}>
-                              <Box sx={{ mb: 1 }}>
-                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>{doc.documentType}</Typography>
-                                {editMode ? (
-                                  <TextField fullWidth value={editableData.supportingDocuments?.[index]?.status || ''} onChange={(e) => handleNestedFieldChange('supportingDocuments', index, { ...editableData.supportingDocuments?.[index], status: e.target.value })} size="small" margin="dense" select>
-                                    <MenuItem value="attached">Attached</MenuItem>
-                                    <MenuItem value="pending">Pending</MenuItem>
-                                    <MenuItem value="not required">Not Required</MenuItem>
-                                  </TextField>
-                                ) : (
-                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                    <Chip 
-                                      label={doc.status} 
-                                      size="small" 
-                                      color={doc.status === 'attached' ? 'success' : (doc.status === 'pending' ? 'primary' : 'warning')}
-                                      sx={{ height: '22px', '& .MuiChip-label': { px: 1, py: 0.25, fontSize: '0.75rem' } }}
-                                    />
-                                    {doc.status === 'attached' && doc.fileName && (
-                                      <Typography variant="body2" component="a" href="#" sx={{ textDecoration: 'underline', color: 'primary.main', cursor: 'pointer' }}>
-                                        {doc.fileName}
-                                      </Typography>
-                                    )}
-                                  </Box>
-                                )}
-                              </Box>
-                            </Grid>
-                          ))}
-                        </Grid>
-                      </CardContent>
-                    </Card>
-
-                    {/* Application Fee Card */}
-                    <Card sx={{ mb: 1 }}>
-                      <CardContent sx={{ p: "8px 16px !important" }}>
-                        <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold', color: 'primary.main', borderBottom: '1px solid', borderColor: 'divider', pb: 0.5 }}>Application Fee</Typography>
-                        <Grid container spacing={1}>
-                          <Grid item xs={12} sm={6} md={3} lg={2}>
-                            <Box sx={{ mb: 1 }}>
-                              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Amount</Typography>
-                              {editMode ? (
-                                <TextField fullWidth type="number" value={editableData.applicationFee?.amount || ''} onChange={(e) => handleNestedFieldChange('applicationFee', 'amount', parseFloat(e.target.value))} size="small" margin="dense" />
-                              ) : (
-                                <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{applicationData.applicationFee?.amount}</Typography>
-                              )}
-                            </Box>
-                          </Grid>
-                          <Grid item xs={12} sm={6} md={3} lg={2}>
-                            <Box sx={{ mb: 1 }}>
-                              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Currency</Typography>
-                              {editMode ? (
-                                <TextField fullWidth value={editableData.applicationFee?.currency || ''} onChange={(e) => handleNestedFieldChange('applicationFee', 'currency', e.target.value)} size="small" margin="dense" />
-                              ) : (
-                                <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{applicationData.applicationFee?.currency}</Typography>
-                              )}
-                            </Box>
-                          </Grid>
-                          <Grid item xs={12} sm={6} md={3} lg={2}>
-                            <Box sx={{ mb: 1 }}>
-                              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Payment Method</Typography>
-                              {editMode ? (
-                                <TextField fullWidth value={editableData.applicationFee?.paymentMethod || ''} onChange={(e) => handleNestedFieldChange('applicationFee', 'paymentMethod', e.target.value)} size="small" margin="dense" />
-                              ) : (
-                                <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{applicationData.applicationFee?.paymentMethod}</Typography>
-                              )}
-                            </Box>
-                          </Grid>
-                          <Grid item xs={12} sm={6} md={3} lg={2}>
-                            <Box sx={{ mb: 1 }}>
-                              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 'bold' }}>Reference Number</Typography>
-                              {editMode ? (
-                                <TextField fullWidth value={editableData.applicationFee?.referenceNumber || ''} onChange={(e) => handleNestedFieldChange('applicationFee', 'referenceNumber', e.target.value)} size="small" margin="dense" />
-                              ) : (
-                                <Typography variant="body2" sx={{ bgcolor: 'grey.50', p: 0.75, borderRadius: 1 }}>{applicationData.applicationFee?.referenceNumber}</Typography>
-                              )}
-                            </Box>
-                          </Grid>
-                        </Grid>
-                      </CardContent>
-                    </Card>
-                  </Box>
-                )}
-                {tabValue === 1 && (
-                  <Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography variant="h6">Tasks</Typography>
-                      <Box>
-                        <Button 
-                          variant="contained" 
-                          size="small"
-                          startIcon={<MoreVertIcon />}
-                          onClick={(event) => setActionMenuAnchorEl(event.currentTarget)}
-                        >
-                          Actions
-                        </Button>
-                        <Menu
-                          anchorEl={actionMenuAnchorEl}
-                          open={Boolean(actionMenuAnchorEl)}
-                          onClose={() => setActionMenuAnchorEl(null)}
-                        >
-                          <MenuItem onClick={() => {
-                            handleTaskClick(null);
-                            setActionMenuAnchorEl(null);
-                          }}>
-                            <ListItemIcon>
-                              <NoteAddIcon fontSize="small" />
-                            </ListItemIcon>
-                            <ListItemText>Request Supplement</ListItemText>
-                          </MenuItem>
-                          <MenuItem onClick={() => {
-                            // Handle other action
-                            setActionMenuAnchorEl(null);
-                          }}>
-                            <ListItemIcon>
-                              <CancelIcon fontSize="small" color="error" />
-                            </ListItemIcon>
-                            <ListItemText>Withdraw</ListItemText>
-                          </MenuItem>
-                          <MenuItem onClick={() => {
-                            // Handle other action
-                            setActionMenuAnchorEl(null);
-                          }}>
-                            <ListItemIcon>
-                              <BlockIcon fontSize="small" color="error" />
-                            </ListItemIcon>
-                            <ListItemText>Reject</ListItemText>
-                          </MenuItem>
-                        </Menu>
-                      </Box>
-                    </Box>
-                    
-                    {/* New Filter Section */}
-                    <Paper sx={{ p: 2, mb: 2, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, alignItems: 'center' }}>
-                      <TextField
-                        label="Search Tasks"
-                        placeholder="Enter task name"
-                        variant="outlined"
-                        size="small"
-                        fullWidth
-                        value={taskFilter}
-                        InputProps={{
-                          startAdornment: (
-                            <InputAdornment position="start">
-                              <SearchIcon />
-                            </InputAdornment>
-                          ),
-                        }}
-                        onChange={(e) => handleTaskFilter(e.target.value)}
-                        sx={{ flexGrow: 1 }}
-                      />
-                      
-                      <FormControl variant="outlined" size="small" sx={{ minWidth: 150 }}>
-                        <InputLabel>Status</InputLabel>
-                        <Select
-                          label="Status"
-                          value={statusFilter}
-                          onChange={(e) => setStatusFilter(e.target.value)}
-                        >
-                          <MenuItem value="">All</MenuItem>
-                          <MenuItem value="Pending">Pending</MenuItem>
-                          <MenuItem value="In Progress">In Progress</MenuItem>
-                          <MenuItem value="Completed">Completed</MenuItem>
-                          <MenuItem value="Cancelled">Cancelled</MenuItem>
-                        </Select>
-                      </FormControl>
-                      
-                      <Button 
-                        variant="text" 
-                        size="small"
-                        onClick={() => setAdvancedFilterOpen(!advancedFilterOpen)}
-                        startIcon={<FilterListIcon fontSize="small" />}
-                        sx={{ minWidth: 'unset' }}
-                      >
-                        More
-                      </Button>
-                      
-                      <Button 
-                        variant="text" 
-                        size="small"
-                        color="secondary"
-                        onClick={() => {
-                          setTaskFilter('');
-                          setStatusFilter('');
-                          setDueDateFromFilter('');
-                          setDueDateToFilter('');
-                          setAdvancedFilterOpen(false);
-                        }}
-                        sx={{ minWidth: 'unset' }}
-                      >
-                        Clear
-                      </Button>
-                    </Paper>
-                    
-                    {/* Advanced Filter Collapse Section */}
-                    <Collapse in={advancedFilterOpen}>
-                      <Paper sx={{ p: 2, mb: 2 }}>
-                        <Grid container spacing={2}>
-                          <Grid item xs={12} sm={6} md={4}>
-                            <TextField
-                              label="Action By"
-                              placeholder="Filter by any role"
-                              variant="outlined"
-                              size="small"
-                              fullWidth
-                              value={searchTaskActionBy}
-                              onChange={(e) => setSearchTaskActionBy(e.target.value)}
-                            />
-                          </Grid>
-                          <Grid item xs={12} sm={6} md={4}>
-                            <TextField
-                              label="Due Date From"
-                              type="date"
-                              variant="outlined"
-                              size="small"
-                              fullWidth
-                              value={dueDateFromFilter}
-                              InputLabelProps={{ shrink: true }}
-                              onChange={(e) => setDueDateFromFilter(e.target.value)}
-                            />
-                          </Grid>
-                          <Grid item xs={12} sm={6} md={4}>
-                            <TextField
-                              label="Due Date To"
-                              type="date"
-                              variant="outlined"
-                              size="small"
-                              fullWidth
-                              value={dueDateToFilter}
-                              InputLabelProps={{ shrink: true }}
-                              onChange={(e) => setDueDateToFilter(e.target.value)}
-                            />
-                          </Grid>
-                        </Grid>
-                      </Paper>
-                    </Collapse>
-                    
-                    {/* Filtered Task List */}
-                    <List>
-                      {filteredTasks.map((task) => (
-                        <ListItem 
-                          key={task.id} 
-                          button 
-                          onClick={() => handleTaskClick(task)}
-                          sx={{ 
-                            border: 1, 
-                            borderColor: 'divider', 
-                            borderRadius: 1.5, 
-                            mb: 1.5, 
-                            bgcolor: 'background.paper',
-                            boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-                            transition: 'box-shadow 0.2s ease-in-out, transform 0.2s ease-in-out',
-                            '&:hover': { 
-                              bgcolor: 'action.hover', 
-                              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                              transform: 'translateY(-2px)'
-                            },
-                            p: 1.5 // Padding inside list item
-                          }}
-                        >
-                          <ListItemText 
-                            primary={<Typography variant="subtitle1" fontWeight="medium">{task.name}</Typography>} 
-                            secondary={
-                              <Box sx={{ mt: 0.5 }}>
-                                <Typography variant="body2" component="span" sx={{ display: 'inline-block', mr: 2 }}>
-                                  <Typography component="span" variant="caption" color="text.secondary" sx={{ fontWeight: 'medium' }}>Due: </Typography>
-                                  {task.dueDate}
-                                </Typography>
-                                <Typography variant="body2" component="span">
-                                  <Typography component="span" variant="caption" color="text.secondary" sx={{ fontWeight: 'medium' }}>Action By: </Typography>
-                                  {formatActionBy(task.actionBy)}
-                                </Typography>
-                              </Box>
-                            }
-                            sx={{ mr: 1 }} // Reduced margin from mr: 2 to mr: 1
-                          />
-                          <Chip 
-                            label={task.status} 
-                            size="small" 
-                            color={task.status === 'In Progress' ? 'primary' : (task.status === 'Pending' ? 'warning' : (task.status === 'Rejected' ? 'error' : (task.status === 'Completed' || task.status === 'Closed' ? 'success' : 'default')))}
-                            sx={{ fontWeight: 'medium' }}
-                          />
-                        </ListItem>
-                      ))}
-                    </List>
-                    
-                    {filteredTasks.length === 0 && (
-                      <Box sx={{ textAlign: 'center', py: 4 }}>
-                        <Typography variant="body1" color="text.secondary">
-                          No tasks match your filter criteria
-                        </Typography>
-                      </Box>
-                    )}
-                  </Box>
-                )}
-                {tabValue === 2 && (
-                  <Box>
-                    <Card sx={{ mb: 2 }}>
-                      <CardContent sx={{ p: "12px 16px !important" }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                          <Typography variant="subtitle1" sx={{ fontWeight: 'medium' }}>Attachments</Typography>
-                          <TextField
-                            placeholder="Search attachments"
-                            size="small"
-                            InputProps={{
-                              startAdornment: (
-                                <InputAdornment position="start">
-                                  <SearchIcon fontSize="small" />
-                                </InputAdornment>
-                              ),
-                            }}
-                            sx={{ width: '250px' }}
-                          />
-                        </Box>
-                      </CardContent>
-                    </Card>
-                    
-                    <TableContainer component={Paper} sx={{ boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
-                      <Table size="small">
-                        <TableHead>
-                          <TableRow sx={{ bgcolor: 'grey.50' }}>
-                            <TableCell>File Name</TableCell>
-                            <TableCell>Description</TableCell>
-                            <TableCell>Type</TableCell>
-                            <TableCell>Uploaded By</TableCell>
-                            <TableCell>Upload Date</TableCell>
-                            <TableCell>Actions</TableCell>
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          <TableRow>
-                            <TableCell>
-                              <Typography variant="body2" component="a" href="#" sx={{ textDecoration: 'underline', color: 'primary.main', display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                <AssignmentIcon fontSize="small" /> Application_Form.pdf
-                              </Typography>
-                            </TableCell>
-                            <TableCell>REA Application Form</TableCell>
-                            <TableCell>PDF</TableCell>
-                            <TableCell>John Doe</TableCell>
-                            <TableCell>2023-11-20</TableCell>
-                            <TableCell>
-                              <IconButton size="small">
-                                <MoreVertIcon fontSize="small" />
-                              </IconButton>
-                            </TableCell>
-                          </TableRow>
-                          <TableRow>
-                            <TableCell>
-                              <Typography variant="body2" component="a" href="#" sx={{ textDecoration: 'underline', color: 'primary.main', display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                <AssignmentIcon fontSize="small" /> Professional_Certificate.pdf
-                              </Typography>
-                            </TableCell>
-                            <TableCell>Professional Engineering Certificate</TableCell>
-                            <TableCell>PDF</TableCell>
-                            <TableCell>John Doe</TableCell>
-                            <TableCell>2023-11-20</TableCell>
-                            <TableCell>
-                              <IconButton size="small">
-                                <MoreVertIcon fontSize="small" />
-                              </IconButton>
-                            </TableCell>
-                          </TableRow>
-                          <TableRow>
-                            <TableCell>
-                              <Typography variant="body2" component="a" href="#" sx={{ textDecoration: 'underline', color: 'primary.main', display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                <AssignmentIcon fontSize="small" /> Experience_Letter.pdf
-                              </Typography>
-                            </TableCell>
-                            <TableCell>Experience Verification Letter</TableCell>
-                            <TableCell>PDF</TableCell>
-                            <TableCell>John Doe</TableCell>
-                            <TableCell>2023-11-20</TableCell>
-                            <TableCell>
-                              <IconButton size="small">
-                                <MoreVertIcon fontSize="small" />
-                              </IconButton>
-                            </TableCell>
-                          </TableRow>
-                        </TableBody>
-                      </Table>
-                    </TableContainer>
-                    <Box sx={{ mt: 2 }}>
-                      <AttachmentUpload />
-                    </Box>
-                  </Box>
-                )}
-                {tabValue === 3 && (
-                  <Box>
-                    <Card sx={{ mb: 2 }}>
-                      <CardContent sx={{ p: "12px 16px !important" }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <Typography variant="subtitle1" sx={{ fontWeight: 'medium' }}>Related Cases</Typography>
-                          <TextField
-                            placeholder="Search related cases"
-                            size="small"
-                            InputProps={{
-                              startAdornment: (
-                                <InputAdornment position="start">
-                                  <SearchIcon fontSize="small" />
-                                </InputAdornment>
-                              ),
-                            }}
-                            sx={{ width: '250px' }}
-                          />
-                        </Box>
-                      </CardContent>
-                    </Card>
-                    
-                    <TableContainer component={Paper} sx={{ boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
-                      <Table size="small">
-                        <TableHead>
-                          <TableRow sx={{ bgcolor: 'grey.50' }}>
-                            <TableCell>Case ID</TableCell>
-                            <TableCell>File No.</TableCell>
-                            <TableCell>Case Type</TableCell>
-                            <TableCell>Status</TableCell>
-                            <TableCell>Created Date</TableCell>
-                            {/* <TableCell>Actions</TableCell> */} {/* Removed Actions header */}
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {relatedCases.map((relatedCase) => (
-                            <TableRow key={relatedCase.id}>
-                              <TableCell>
-                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                  <Typography variant="body2" sx={{ mr: 0.5 }}>{relatedCase.id}</Typography>
-                                  <Tooltip title="View Case Details">
-                                    <IconButton
-                                      size="small"
-                                      onClick={() => handleViewRelatedCaseInNewTab(relatedCase.id)}
-                                      color="primary"
-                                    >
-                                      <VisibilityIcon fontSize="small" />
-                                    </IconButton>
-                                  </Tooltip>
-                                </Box>
-                              </TableCell>
-                              <TableCell>{casesData[relatedCase.id].fileNo}</TableCell>
-                              <TableCell>{casesData[relatedCase.id].caseType}</TableCell>
-                              <TableCell>
-                                <Chip
-                                  size="small"
-                                  label={relatedCase.status}
-                                  color={relatedCase.status === 'Open' ? 'primary' : (relatedCase.status === 'In Progress' ? 'primary' : (relatedCase.status === 'Pending' ? 'warning' : (relatedCase.status === 'Rejected' ? 'error' : (relatedCase.status === 'Completed' || relatedCase.status === 'Closed' ? 'success' : 'default'))))}
-                                  sx={{ height: '22px', '& .MuiChip-label': { px: 1, py: 0.25, fontSize: '0.75rem' } }}
-                                />
-                              </TableCell>
-                              <TableCell>{casesData[relatedCase.id].createdDate}</TableCell>
-                              {/*
-                              <TableCell>
-                                <Button
-                                  variant="outlined"
-                                  size="small"
-                                  onClick={() => handleCaseChange(relatedCase.id)} // This would change view in current tab
-                                  sx={{ height: '24px', fontSize: '0.75rem', minWidth: '60px' }}
-                                >
-                                  View
-                                </Button>
-                              </TableCell>
-                              */}
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </TableContainer>
-                  </Box>
-                )}
-                {tabValue === 4 && (
-                  <Box>
-                    <Card sx={{ mb: 2 }}>
-                      <CardContent sx={{ p: "12px 16px !important" }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <Typography variant="subtitle1" sx={{ fontWeight: 'medium' }}>Case History</Typography>
-                          <Box sx={{ display: 'flex', gap: 1 }}>
-                            <FormControl variant="outlined" size="small" sx={{ minWidth: 150 }}>
-                              <InputLabel>Filter by</InputLabel>
-                              <Select
-                                label="Filter by"
-                                value=""
-                              >
-                                <MenuItem value="all">All Events</MenuItem>
-                                <MenuItem value="task">Task Events</MenuItem>
-                                <MenuItem value="document">Document Events</MenuItem>
-                                <MenuItem value="status">Status Changes</MenuItem>
-                              </Select>
-                            </FormControl>
-                          </Box>
-                        </Box>
-                      </CardContent>
-                    </Card>
-                    
-                    <Paper sx={{ p: 2, border: '1px solid', borderColor: 'divider', boxShadow: 'none' }}>
-                      <TimelineContainer>
-                        {mockHistory.map((item, index) => (
-                          <TimelineEntry key={index}>
-                            <TimelineDot />
-                            <Box sx={{ flex: 1 }}>
-                              <Grid container spacing={1} alignItems="center">
-                                <Grid item xs={12} sm={2}>
-                                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'medium' }}>
-                                    {item.date}
-                                  </Typography>
-                                </Grid>
-                                <Grid item xs={12} sm={8}>
-                                  <Typography variant="body2">
-                                    {item.action}
-                                  </Typography>
-                                </Grid>
-                                <Grid item xs={12} sm={2}>
-                                  <Typography variant="caption" color="text.secondary">
-                                    By: {item.actor}
-                                  </Typography>
-                                </Grid>
-                              </Grid>
-                              {index < mockHistory.length - 1 && <Divider sx={{ mt: 1.5, mb: 1.5 }} />}
-                            </Box>
-                          </TimelineEntry>
-                        ))}
-                      </TimelineContainer>
-                    </Paper>
-                  </Box>
-                )}
-              </Box>
-            </Paper>
+            {/* Use the new CaseDetailTabs component */}
+            <CaseDetailTabs
+                currentTab={tabValue}
+                handleTabChange={(e, v) => setTabValue(v)}
+                caseData={caseData}
+                applicationData={applicationData}
+                editMode={editMode}
+                setEditMode={setEditMode}
+                editableData={editableData}
+                handleFieldChange={handleFieldChange}
+                handleNestedFieldChange={handleDeepNestedFieldChange}
+                handleAddressChange={adaptedAddressChangeHandler}
+                handleSimpleFieldChange={handleNestedFieldChange}
+                handleArrayObjectChange={handleArrayObjectChange}
+                handleQualificationAttachmentChange={handleQualificationAttachmentChange}
+                // Tasks Tab Props
+                filteredTasks={filteredTasks}
+                taskFilter={taskFilter}
+                handleTaskFilter={handleTaskFilter}
+                statusFilter={statusFilter}
+                setStatusFilter={setStatusFilter}
+                advancedFilterOpen={advancedFilterOpen}
+                setAdvancedFilterOpen={setAdvancedFilterOpen}
+                searchTaskActionBy={searchTaskActionBy}
+                setSearchTaskActionBy={setSearchTaskActionBy}
+                dueDateFromFilter={dueDateFromFilter}
+                setDueDateFromFilter={setDueDateFromFilter}
+                dueDateToFilter={dueDateToFilter}
+                setDueDateToFilter={setDueDateToFilter}
+                handleTaskClick={handleTaskClick}
+                formatActionBy={formatActionBy}
+                actionMenuAnchorEl={actionMenuAnchorEl}
+                setActionMenuAnchorEl={setActionMenuAnchorEl}
+                // Attachments Tab Props (add mockAttachments or real data later)
+                // relatedCases already passed via caseData/applicationData if needed
+                // or pass directly if CaseDetailTabs filters them itself
+                relatedCases={relatedCases}
+                handleViewRelatedCaseInNewTab={handleViewRelatedCaseInNewTab}
+                casesData={casesData} // Pass full casesData for related case lookups
+                // History Tab Props
+                mockHistory={mockHistory} // Pass mockHistory
+                handleSave={handleSaveApplicationForm} // Pass the save handler
+            />
           </Box>
 
           {/* Task Detail Drawer */}

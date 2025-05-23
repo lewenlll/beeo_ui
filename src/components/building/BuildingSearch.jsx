@@ -810,6 +810,7 @@ const BuildingSearch = () => {
               visible: false, // Set to true for visibility
               definitionExpression: "1=1", // Show all features
               editable: false, // Explicitly disable editing capabilities
+              minScale: 15000, // Only show when zoomed in beyond 1:value scale
               renderer: {
                 type: "unique-value",
                 field: "status", // You may want to update this field to match the actual field in the CSDI building layer
