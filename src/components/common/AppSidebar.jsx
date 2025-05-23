@@ -16,6 +16,7 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import HomeIcon from '@mui/icons-material/Home';
 import SearchIcon from '@mui/icons-material/Search';
 import ApartmentIcon from '@mui/icons-material/Apartment';
+import DescriptionIcon from '@mui/icons-material/Description';
 
 const AppSidebar = ({ drawerOpen, setDrawerOpen }) => {
   return (
@@ -118,6 +119,25 @@ const AppSidebar = ({ drawerOpen, setDrawerOpen }) => {
             {drawerOpen && <ListItemText primary="Home" />}
           </ListItem>
         </Tooltip>
+
+        <Tooltip title={drawerOpen ? "" : "WBRS Applications"} placement="right">
+          <ListItem 
+            button 
+            component="a" 
+            href="/wbrs-search" 
+            sx={{ 
+              py: 1.5,
+              px: drawerOpen ? 2 : 'auto',
+              justifyContent: drawerOpen ? 'flex-start' : 'center',
+              minHeight: 48
+            }}
+          >
+            <ListItemIcon sx={{ minWidth: drawerOpen ? 40 : 0, mr: drawerOpen ? 2 : 'auto' }}>
+              <DescriptionIcon color="primary" />
+            </ListItemIcon>
+            {drawerOpen && <ListItemText primary="WBRS Applications" />}
+          </ListItem>
+        </Tooltip>
         
         <Tooltip title={drawerOpen ? "" : "Cases"} placement="right">
           <ListItem 
@@ -156,6 +176,8 @@ const AppSidebar = ({ drawerOpen, setDrawerOpen }) => {
             {drawerOpen && <ListItemText primary="Buildings" />}
           </ListItem>
         </Tooltip>
+
+        
       </List>
       <Divider />
     </Drawer>
