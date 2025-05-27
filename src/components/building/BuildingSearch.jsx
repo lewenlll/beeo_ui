@@ -891,7 +891,7 @@ const BuildingSearch = () => {
                       
                       if (objectId) {
                         // Query the local LOTLANDINFO.json file
-                        const relatedUrl = "/LOTLANDINFO.json"; // Changed to local JSON file
+                        const relatedUrl = "/LOTLANDINFO_filtered.json"; // Changed to local JSON file
                         
                         fetch(relatedUrl) // Removed query parameters
                           .then(response => response.json())
