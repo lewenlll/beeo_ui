@@ -669,9 +669,9 @@ const BuildingSearch = () => {
       // Use green icon for bookmarked buildings - same base icon, green color
       const symbol = new PictureMarkerSymbol({
         url: getIconDataByType(ICON_TYPES.BOOKMARKED),
-        width: "32px",
-        height: "32px",
-        yoffset: 16
+        width: "24px",
+        height: "24px",
+        yoffset: 12
       });
       
       const displayName = building.customName || building.name || "Bookmarked Building";
@@ -882,34 +882,32 @@ const BuildingSearch = () => {
                       contentDiv.innerHTML = `
                         <table class="esri-widget__table">
                           <tr><th>Object ID</th><td>${attributes.OBJECTID}</td></tr>
-                          <tr><th>Lot Code</th><td>${attributes.LOTCODE || "N/A"}</td></tr>
-                          <tr><th>Lot No</th><td>${attributes.LOTNO || "N/A"}</td></tr>
-                          <tr><th>Lot Name</th><td>${attributes.LOTNAME || "N/A"}</td></tr>
-                          <tr><th>Area</th><td>${attributes.SURVEYAREA || "N/A"} ${attributes.AREAUNIT || ""}</td></tr>
-                          <tr><th>Property Reference Number</th><td>${attributes.PRN || "N/A"}</td></tr>
                         </table>
                         <div id="relatedInfo"></div>
                       `;
                       
-                      // Now fetch the related records from LOTLANDINFO table
-                      const prn = attributes.PRN;
+                      // Now fetch the related records from LOTLANDINFO.json
+                      const objectId = attributes.OBJECTID;
                       
-                      if (prn) {
-                        // Query the related LOTLANDINFO table (index 1 in the MapServer)
-                        // We're using a simple query based on PRN which should be the relationship key
-                        const relatedUrl = "https://portal.csdi.gov.hk/server/rest/services/open/landsd_rcd_1637217253134_22729/MapServer/1";
+                      if (objectId) {
+                        // Query the local LOTLANDINFO.json file
+                        const relatedUrl = "/LOTLANDINFO.json"; // Changed to local JSON file
                         
-                        fetch(`${relatedUrl}/query?where=PRN='${prn}'&outFields=*&f=json`)
+                        fetch(relatedUrl) // Removed query parameters
                           .then(response => response.json())
-                          .then(result => {
+                          .then(jsonData => {
                             // Remove loading indicator
                             div.removeChild(loadingDiv);
                             
                             // Handle the related data
                             const relatedInfoDiv = contentDiv.querySelector("#relatedInfo");
                             
-                            if (result.features && result.features.length > 0) {
-                              const relatedAttributes = result.features[0].attributes;
+                            // Find the matching record in the JSON data using OBJECTID
+                            // Assuming LOTLANDINFO.json is an array of objects, and each object has an OBJECTID field
+                            const relatedRecord = jsonData.find(record => record.OBJECTID === objectId);
+                            
+                            if (relatedRecord) {
+                              const relatedAttributes = relatedRecord; // Use the found record directly
                               
                               // Add the related information to our content
                               let relatedHTML = `
@@ -954,7 +952,7 @@ const BuildingSearch = () => {
                             } else {
                               relatedInfoDiv.innerHTML = `
                                 <div style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px;">
-                                  <p>No related detail information found for this lot.</p>
+                                  <p>No related detail information found for OBJECTID: ${objectId}.</p>
                                 </div>
                               `;
                             }
@@ -973,13 +971,13 @@ const BuildingSearch = () => {
                             console.error("Error fetching related data:", error);
                           });
                       } else {
-                        // No PRN available to query related data
+                        // No OBJECTID available to query related data
                         div.removeChild(loadingDiv);
                         
                         const relatedInfoDiv = contentDiv.querySelector("#relatedInfo");
                         relatedInfoDiv.innerHTML = `
                           <div style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px;">
-                            <p>No Property Reference Number available to fetch detailed information.</p>
+                            <p>No OBJECTID available to fetch detailed information.</p>
                           </div>
                         `;
                       }
@@ -1507,9 +1505,9 @@ const BuildingSearch = () => {
         building.csvMatchType === 'SINGLE' ? ICON_TYPES.CSV_MATCHED :
         ICON_TYPES.SELECTED
       ),
-      width: "32px",
-      height: "32px",
-      yoffset: 16
+      width: "24px",
+      height: "24px",
+      yoffset: 12
     });
 
     // First, add or update the marker
